@@ -1,0 +1,38 @@
+version: "3.8"
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fuego-dance-api
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=sqlite:///./fuego_dance.db
+      - INSTAGRAM_ACCESS_TOKEN=${INSTAGRAM_ACCESS_TOKEN:-}
+    volumes:
+      - fuego-uploads:/app/uploads
+    networks:
+      - fuego-net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: fuego-dance-web
+    restart: unless-stopped
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "8180:80"
+    depends_on:
+      - backend
+    networks:
+      - fuego-net
+
+volumes:
+  fuego-uploads:
+
+networks:
+  fuego-net:
+    driver: bridge

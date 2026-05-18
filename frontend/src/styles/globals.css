@@ -1,0 +1,63 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Global styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: #0D0D0D;
+  color: #FFFFFF;
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1A1A2E;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #E63946;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #F77F00;
+}
+
+/* Selection */
+::selection {
+  background: #E6394666;
+  color: #FFFFFF;
+}
+
+/* Fire glow utility */
+.fire-glow {
+  box-shadow: 0 0 15px #E6394644, 0 0 30px #F77F0022;
+}
+
+.fire-glow-hover:hover {
+  box-shadow: 0 0 20px #E6394666, 0 0 40px #F77F0044;
+}
+
+/* Gradient text */
+.text-fire-gradient {
+  background: linear-gradient(135deg, #E63946, #F77F00, #FCBF49);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
