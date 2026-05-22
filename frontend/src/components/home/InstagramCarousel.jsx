@@ -1,38 +1,43 @@
 import { useState, useCallback, useEffect } from 'react'
 import { ChevronLeft, ChevronRight, Instagram, ExternalLink } from 'lucide-react'
+import logoImg from '../../assets/logo.jpg'
 
 export default function InstagramCarousel() {
   const [posts, setPosts] = useState([])
   const [current, setCurrent] = useState(0)
   const [loading, setLoading] = useState(true)
-  const [direction, setDirection] = useState(0) // -1 left, 1 right, 0 initial
 
-  useEffect(() => {
+  const fetchFeed = useCallback(() => {
     fetch('/api/instagram/feed')
       .then(r => r.json())
       .then(data => {
         if (Array.isArray(data) && data.length > 0) {
-          setPosts(data)
+          setPosts(data.slice(0, 10))
         }
         setLoading(false)
       })
       .catch(() => setLoading(false))
   }, [])
 
+  useEffect(() => {
+    fetchFeed()
+    // Auto-refresh every 6 hours
+    const refreshTimer = setInterval(fetchFeed, 6 * 60 * 60 * 1000)
+    return () => clearInterval(refreshTimer)
+  }, [fetchFeed])
+
   const next = useCallback(() => {
-    setDirection(1)
     setCurrent(prev => (prev + 1) % posts.length)
   }, [posts.length])
 
   const prev = useCallback(() => {
-    setDirection(-1)
     setCurrent(prev => (prev - 1 + posts.length) % posts.length)
   }, [posts.length])
 
-  // Auto-advance every 6 seconds
+  // Auto-advance every 5 seconds
   useEffect(() => {
     if (posts.length < 2) return
-    const timer = setInterval(next, 6000)
+    const timer = setInterval(next, 5000)
     return () => clearInterval(timer)
   }, [posts.length, next])
 
@@ -97,28 +102,33 @@ export default function InstagramCarousel() {
             {/* Glow ring */}
             <div className="absolute -inset-8 rounded-3xl bg-gradient-to-br from-fire-red/20 via-fire-orange/10 to-fire-gold/20 blur-3xl animate-pulse-slow pointer-events-none" />
 
-            {/* Card with Instagram border */}
+            {/* Card with Instagram gradient border */}
             <div
               key={current}
-              className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-fire-red via-fire-orange to-fire-gold p-[3px] shadow-[0_0_60px_rgba(230,57,70,.25)] animate-fade-up"
+              className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-fire-red via-fire-orange to-fire-gold p-[3px] shadow-[0_0_60px_rgba(230,57,70,.25)]"
             >
               <div className="bg-dark-charcoal rounded-[calc(1rem-3px)] overflow-hidden">
                 {/* Instagram header bar */}
                 <div className="flex items-center gap-3 px-4 py-3 border-b border-white/5">
-                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-fire-red to-fire-orange flex items-center justify-center">
-                    <Instagram className="w-4 h-4 text-white" />
+                  <div className="w-9 h-9 rounded-full overflow-hidden ring-2 ring-fire-red/50">
+                    <img
+                      src={logoImg}
+                      alt="Fuego Dance"
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-white truncate">fuegodance.cl</p>
-                    <p className="text-[10px] text-muted uppercase tracking-wider">Instagram</p>
+                    <p className="text-[10px] text-muted uppercase tracking-wider">Curicó, Chile</p>
                   </div>
                   <a
                     href={post.permalink}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-fire-gold hover:text-white transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-fire-red/20 text-fire-gold text-xs font-semibold hover:bg-fire-red/30 transition-colors"
                   >
-                    <ExternalLink className="w-4 h-4" />
+                    <Instagram className="w-3.5 h-3.5" />
+                    Ver
                   </a>
                 </div>
 
@@ -144,12 +154,33 @@ export default function InstagramCarousel() {
 
                 {/* Instagram footer bar */}
                 <div className="flex items-center justify-between px-4 py-3 border-t border-white/5">
-                  <div className="flex items-center gap-4">
-                    <svg className="w-6 h-6 text-fire-red" fill="currentColor" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" /></svg>
-                    <svg className="w-6 h-6 text-silver hover:text-white transition-colors" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.66 0 3-4.03 3-9s-1.34-9-3-9m0 18c-1.66 0-3-4.03-3-9s1.34-9 3-9" /></svg>
-                    <svg className="w-6 h-6 text-silver hover:text-white transition-colors" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M22 3l-1.6 1.6M8 21l-4 4M2 12l4-4M16 8l4-4M12 2l4 4M8 8l-4 4M20 20l-4-4" /></svg>
+                  <div className="flex items-center gap-5">
+                    {/* Heart */}
+                    <button className="text-fire-red hover:scale-110 transition-transform" aria-label="Me gusta">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                      </svg>
+                    </button>
+                    {/* Comment */}
+                    <button className="text-silver hover:text-white hover:scale-110 transition-all" aria-label="Comentar">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                      </svg>
+                    </button>
+                    {/* Share */}
+                    <button className="text-silver hover:text-white hover:scale-110 transition-all" aria-label="Compartir">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="22" y1="2" x2="11" y2="13" />
+                        <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                      </svg>
+                    </button>
                   </div>
-                  <svg className="w-6 h-6 text-silver hover:text-white transition-colors" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z" /></svg>
+                  {/* Bookmark */}
+                  <button className="text-silver hover:text-white hover:scale-110 transition-all" aria-label="Guardar">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+                    </svg>
+                  </button>
                 </div>
               </div>
             </div>
@@ -165,10 +196,7 @@ export default function InstagramCarousel() {
             <button
               type="button"
               key={i}
-              onClick={() => {
-                setDirection(i > current ? 1 : -1)
-                setCurrent(i)
-              }}
+              onClick={() => setCurrent(i)}
               className={`rounded-full transition-all duration-300 ${
                 i === current
                   ? 'w-8 h-2.5 bg-fire-red fire-glow'
