@@ -244,6 +244,25 @@ async def admin_upload_gallery(
     return photo
 
 
+@router.put("/gallery/{photo_id}", dependencies=[Depends(get_current_user)])
+def admin_update_gallery(
+    photo_id: int,
+    event: Optional[str] = Form(None),
+    alt: Optional[str] = Form(None),
+    db: Session = Depends(get_db),
+):
+    photo = db.query(GalleryPhoto).filter(GalleryPhoto.id == photo_id).first()
+    if not photo:
+        raise HTTPException(status_code=404, detail="Foto no encontrada")
+    if event is not None:
+        photo.event = event if event.strip() else None
+    if alt is not None:
+        photo.alt = alt if alt.strip() else None
+    db.commit()
+    db.refresh(photo)
+    return photo
+
+
 @router.delete("/gallery/{photo_id}", dependencies=[Depends(get_current_user)])
 def admin_delete_gallery(photo_id: int, db: Session = Depends(get_db)):
     photo = db.query(GalleryPhoto).filter(GalleryPhoto.id == photo_id).first()

@@ -1,14 +1,12 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
-import { LayoutDashboard, Music, Camera, Video, Mail, LogOut, ExternalLink } from 'lucide-react'
+import { LayoutDashboard, Music, Camera, LogOut, ExternalLink } from 'lucide-react'
 import logo from '../../assets/logo.jpg'
 
 const links = [
   { to: '/admin', icon: LayoutDashboard, label: 'Dashboard', short: 'Inicio' },
   { to: '/admin/figuras', icon: Music, label: 'Figuras', short: 'Figuras' },
   { to: '/admin/galeria', icon: Camera, label: 'Galería', short: 'Fotos' },
-  { to: '/admin/videos', icon: Video, label: 'Videos', short: 'Videos' },
-  { to: '/admin/mensajes', icon: Mail, label: 'Mensajes', short: 'Msgs' },
 ]
 
 const NavLinks = ({ mobile = false, location }) => (

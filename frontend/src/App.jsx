@@ -9,8 +9,6 @@ import AdminLogin from './pages/admin/Login'
 import Dashboard from './pages/admin/Dashboard'
 import FiguresAdmin from './pages/admin/FiguresAdmin'
 import GalleryAdmin from './pages/admin/GalleryAdmin'
-import VideosAdmin from './pages/admin/VideosAdmin'
-import MessagesAdmin from './pages/admin/MessagesAdmin'
 
 function App() {
   return (
@@ -31,8 +29,6 @@ function App() {
         <Route index element={<Dashboard />} />
         <Route path="figuras" element={<FiguresAdmin />} />
         <Route path="galeria" element={<GalleryAdmin />} />
-        <Route path="videos" element={<VideosAdmin />} />
-        <Route path="mensajes" element={<MessagesAdmin />} />
       </Route>
     </Routes>
   )

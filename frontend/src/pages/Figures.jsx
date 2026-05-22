@@ -51,9 +51,7 @@ export default function Figures() {
           <h2 className="font-heading text-6xl sm:text-8xl tracking-wider leading-none">
             <span className="text-fire-gradient">FIGURAS</span> DE SALSA
           </h2>
-          <p className="text-silver/90 text-center mt-5 max-w-2xl mx-auto">
-            Figuras de Salsa Casino con videos subidos directamente a la aplicación y guardados en el servidor.
-          </p>
+
         </div>
 
         <div className="flex flex-wrap items-center justify-center gap-3 mb-10">
