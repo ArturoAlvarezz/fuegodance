@@ -6,6 +6,7 @@ export default function GalleryCarousel() {
   const [current, setCurrent] = useState(0)
   const [loading, setLoading] = useState(true)
   const [isPaused, setIsPaused] = useState(false)
+  const [direction, setDirection] = useState(0) // -1 left, 1 right
 
   useEffect(() => {
     fetch('/api/gallery/')
@@ -18,32 +19,41 @@ export default function GalleryCarousel() {
   }, [])
 
   const next = useCallback(() => {
+    setDirection(1)
     setCurrent(prev => (prev + 1) % photos.length)
   }, [photos.length])
 
   const prev = useCallback(() => {
+    setDirection(-1)
     setCurrent(prev => (prev - 1 + photos.length) % photos.length)
   }, [photos.length])
 
   // Auto-play
   useEffect(() => {
     if (photos.length < 2 || isPaused) return
-    const timer = setInterval(next, 4000)
+    const timer = setInterval(next, 4500)
     return () => clearInterval(timer)
   }, [photos.length, isPaused, next])
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKey = (e) => {
+      if (e.key === 'ArrowLeft') prev()
+      if (e.key === 'ArrowRight') next()
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [next, prev])
 
   if (loading) return null
   if (photos.length === 0) return null
 
-  const getSlide = (offset) => {
+  const photo = photos[current]
+
+  // Get indices for peek previews (2 on each side)
+  const getNeighbor = (offset) => {
     return photos[(current + offset + photos.length) % photos.length]
   }
-
-  const totalSlides = Math.min(photos.length, 7)
-  const offsets = Array.from({ length: totalSlides }, (_, i) => {
-    const half = Math.floor(totalSlides / 2)
-    return i - half
-  })
 
   return (
     <section className="relative py-24 px-4 bg-dark-charcoal overflow-hidden">
@@ -62,10 +72,9 @@ export default function GalleryCarousel() {
           </p>
         </div>
 
-        {/* 3D Carousel */}
+        {/* Carousel */}
         <div
-          className="relative flex items-center justify-center h-[420px] sm:h-[500px] select-none"
-          style={{ perspective: '1400px' }}
+          className="relative flex items-center justify-center select-none"
           onMouseEnter={() => setIsPaused(true)}
           onMouseLeave={() => setIsPaused(false)}
         >
@@ -73,7 +82,7 @@ export default function GalleryCarousel() {
           <button
             type="button"
             onClick={prev}
-            className="absolute left-2 sm:left-4 z-20 w-11 h-11 rounded-full bg-dark-obsidian/80 border border-white/15 text-silver hover:text-white hover:border-fire-red/50 flex items-center justify-center backdrop-blur-xl transition-all hover:scale-110"
+            className="absolute left-2 sm:left-4 z-30 w-11 h-11 rounded-full bg-dark-obsidian/80 border border-white/15 text-silver hover:text-white hover:border-fire-red/50 flex items-center justify-center backdrop-blur-xl transition-all hover:scale-110"
             aria-label="Anterior"
           >
             <ChevronLeft className="w-5 h-5" />
@@ -81,109 +90,82 @@ export default function GalleryCarousel() {
           <button
             type="button"
             onClick={next}
-            className="absolute right-2 sm:right-4 z-20 w-11 h-11 rounded-full bg-dark-obsidian/80 border border-white/15 text-silver hover:text-white hover:border-fire-red/50 flex items-center justify-center backdrop-blur-xl transition-all hover:scale-110"
+            className="absolute right-2 sm:right-4 z-30 w-11 h-11 rounded-full bg-dark-obsidian/80 border border-white/15 text-silver hover:text-white hover:border-fire-red/50 flex items-center justify-center backdrop-blur-xl transition-all hover:scale-110"
             aria-label="Siguiente"
           >
             <ChevronRight className="w-5 h-5" />
           </button>
 
-          {/* Slides */}
-          {offsets.map((offset) => {
-            const slide = getSlide(offset)
-            const abs = Math.abs(offset)
-            const isCenter = offset === 0
-            const scale = isCenter ? 1 : Math.max(0.5, 1 - abs * 0.18)
-            const translateZ = isCenter ? 80 : -abs * 80
-            const rotateY = offset * (isCenter ? 0 : offset < 0 ? -8 : 8)
-            const translateX = offset * (isCenter ? 0 : offset * 18)
-            const opacity = isCenter ? 1 : Math.max(0.15, 1 - abs * 0.25)
-            const zIndex = totalSlides - abs
-            const blur = isCenter ? 0 : abs * 1.5
+          {/* Peek previews — left */}
+          <div className="hidden lg:block absolute left-0 xl:left-8 top-1/2 -translate-y-1/2 w-32 xl:w-40 opacity-30 scale-90 blur-[2px] transition-all duration-700 pointer-events-none z-0">
+            <div className="rounded-2xl overflow-hidden border border-white/5">
+              <img
+                src={`/api/gallery/files/${getNeighbor(-2).filename}?v=2`}
+                alt=""
+                className="w-full h-48 object-cover"
+                draggable={false}
+              />
+            </div>
+          </div>
 
-            return (
-              <div
-                key={`${slide.id}-${offset}`}
-                className="absolute cursor-pointer transition-all duration-700 ease-out"
-                style={{
-                  transform: `
-                    translateX(${translateX}px)
-                    translateZ(${translateZ}px)
-                    rotateY(${rotateY}deg)
-                    scale(${scale})
-                  `,
-                  opacity,
-                  zIndex,
-                  filter: blur ? `blur(${blur}px)` : 'none',
-                  WebkitFilter: blur ? `blur(${blur}px)` : 'none',
-                }}
-                onClick={() => {
-                  if (!isCenter) {
-                    offset < 0 ? prev() : next()
-                  }
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
-                    if (!isCenter) {
-                      offset < 0 ? prev() : next()
-                    }
-                  }
-                }}
-                tabIndex={0}
-                role="button"
-                aria-label={isCenter ? 'Foto actual' : `Ir a foto ${Math.abs(offset) + 1}`}
-              >
-                {/* Glow ring behind center image */}
-                {isCenter && (
-                  <div className="absolute -inset-6 rounded-2xl bg-fire-red/20 blur-3xl animate-pulse-slow pointer-events-none" />
-                )}
+          {/* Peek previews — right */}
+          <div className="hidden lg:block absolute right-0 xl:right-8 top-1/2 -translate-y-1/2 w-32 xl:w-40 opacity-30 scale-90 blur-[2px] transition-all duration-700 pointer-events-none z-0">
+            <div className="rounded-2xl overflow-hidden border border-white/5">
+              <img
+                src={`/api/gallery/files/${getNeighbor(2).filename}?v=2`}
+                alt=""
+                className="w-full h-48 object-cover"
+                draggable={false}
+              />
+            </div>
+          </div>
 
-                {/* Frame */}
-                <div
-                  className={`relative overflow-hidden rounded-2xl border transition-all duration-700
-                    ${isCenter
-                      ? 'border-fire-gold/40 shadow-[0_0_50px_rgba(247,127,0,.25)] max-h-[70vh]'
-                      : 'border-white/10 shadow-lg'
-                    }
-                  `}
-                >
-                    <img
-                    src={`/api/gallery/files/${slide.filename}?v=2`}
-                    alt={slide.alt || 'Fuego Dance'}
-                    className="w-auto h-auto max-w-full max-h-[70vh]"
-                    draggable={false}
-                  />
+          {/* Main image container */}
+          <div className="relative w-full max-w-3xl h-[420px] sm:h-[520px] flex items-center justify-center">
+            {/* Glow ring */}
+            <div className="absolute inset-0 rounded-3xl bg-fire-red/10 blur-3xl animate-pulse-slow pointer-events-none" />
 
-                  {/* Gradient overlay at bottom */}
-                  <div className={`absolute inset-x-0 bottom-0 bg-gradient-to-t from-dark-obsidian/90 via-dark-obsidian/40 to-transparent p-5 pt-12 transition-opacity duration-500 ${isCenter ? 'opacity-100' : 'opacity-0'}`}>
-                    {slide.event && (
-                      <p className="font-heading text-lg tracking-wider text-fire-gold">{slide.event}</p>
-                    )}
-                    <p className="text-[11px] uppercase tracking-[.25em] text-muted mt-1">
-                      Fuego Dance
-                    </p>
-                  </div>
+            {/* Image with fade transition */}
+            <div
+              key={current}
+              className="absolute inset-0 flex items-center justify-center animate-fade-up"
+            >
+              {/* Frame */}
+              <div className="relative overflow-hidden rounded-2xl border border-fire-gold/30 shadow-[0_0_60px_rgba(247,127,0,.2)] max-h-full">
+                <img
+                  src={`/api/gallery/files/${photo.filename}?v=2`}
+                  alt={photo.alt || 'Fuego Dance'}
+                  className="max-w-full max-h-[420px] sm:max-h-[520px] object-contain"
+                  draggable={false}
+                />
+
+                {/* Gradient overlay at bottom */}
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-dark-obsidian/90 via-dark-obsidian/40 to-transparent p-5 pt-16">
+                  {photo.event && (
+                    <p className="font-heading text-lg tracking-wider text-fire-gold">{photo.event}</p>
+                  )}
+                  <p className="text-[11px] uppercase tracking-[.25em] text-muted mt-1">
+                    Fuego Dance
+                  </p>
                 </div>
-
-                {/* Pop-out shadow for center */}
-                {isCenter && (
-                  <div
-                    className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-[70%] h-6 rounded-full bg-fire-red/30 blur-xl pointer-events-none"
-                    style={{ transform: 'translateZ(-40px) translateX(-50%)' }}
-                  />
-                )}
               </div>
-            )
-          })}
+
+              {/* Pop-out shadow */}
+              <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-[60%] h-6 rounded-full bg-fire-red/25 blur-xl pointer-events-none" />
+            </div>
+          </div>
         </div>
 
         {/* Dots */}
-        <div className="flex items-center justify-center gap-2 mt-8">
-          {photos.slice(0, Math.min(photos.length, 9)).map((photo, i) => (
+        <div className="flex items-center justify-center gap-2 mt-10">
+          {photos.slice(0, Math.min(photos.length, 15)).map((p, i) => (
             <button
               type="button"
-              key={photo.id}
-              onClick={() => setCurrent(i)}
+              key={p.id}
+              onClick={() => {
+                setDirection(i > current ? 1 : -1)
+                setCurrent(i)
+              }}
               className={`rounded-full transition-all duration-300 ${
                 i === current
                   ? 'w-8 h-2.5 bg-fire-red fire-glow'
