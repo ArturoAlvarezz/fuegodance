@@ -157,32 +157,32 @@ export default function Figures() {
       {/* Video Modal */}
       {modalFigure && (
         <div
-          className="fixed inset-0 z-50 bg-dark-obsidian/90 flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-dark-obsidian/90 flex items-center justify-center p-2 sm:p-4"
           onClick={() => setModalFigure(null)}
           onKeyDown={(e) => { if (e.key === 'Escape') setModalFigure(null) }}
           tabIndex={0}
           role="presentation"
         >
           <div
-            className="relative w-full max-w-5xl bg-dark-charcoal/95 rounded-[1.75rem] border border-white/10 overflow-hidden shadow-2xl animate-fade-up"
+            className="relative w-full max-w-5xl max-h-[90vh] bg-dark-charcoal/95 rounded-[1.75rem] border border-white/10 shadow-2xl animate-fade-up flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             <button
               type="button"
-              className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-dark-obsidian/80 flex items-center justify-center text-silver hover:text-white transition-colors"
+              className="absolute top-3 right-3 z-10 w-10 h-10 rounded-full bg-dark-obsidian/80 flex items-center justify-center text-silver hover:text-white transition-colors"
               onClick={() => setModalFigure(null)}
             >
               <X className="w-6 h-6" />
             </button>
-            <div style={{ aspectRatio: videoRatios[modalFigure.id] || '16/9' }} className="bg-black relative">
+            <div className="relative flex-shrink min-h-0 bg-black rounded-t-[1.75rem] flex items-center justify-center">
               {loadingVideo === modalFigure.id && (
-                <div className="absolute inset-0 flex items-center justify-center">
+                <div className="absolute inset-0 flex items-center justify-center z-10">
                   <Loader2 className="w-12 h-12 text-fire-orange animate-spin" />
                 </div>
               )}
               <video
                 src={modalFigure.video_file_url}
-                className="w-full h-full object-contain"
+                className="w-full h-full max-h-[75vh] object-contain"
                 controls
                 autoPlay
                 playsInline
@@ -191,10 +191,10 @@ export default function Figures() {
                 onLoadedMetadata={(e) => handleVideoMetadata(e, modalFigure.id)}
               />
             </div>
-            <div className="p-6">
-              <div className="flex items-center justify-between">
-                <h3 className="font-heading text-3xl tracking-wider">{modalFigure.name}</h3>
-                <span className={`px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider ${levelColors[modalFigure.level] || 'bg-dark-ash'}`}>{modalFigure.level}</span>
+            <div className="p-4 sm:p-6 shrink-0">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="font-heading text-2xl sm:text-3xl tracking-wider truncate">{modalFigure.name}</h3>
+                <span className={`px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider shrink-0 ${levelColors[modalFigure.level] || 'bg-dark-ash'}`}>{modalFigure.level}</span>
               </div>
               {modalFigure.duration && (
                 <p className="text-xs text-muted mt-2">Duración: {modalFigure.duration}</p>
