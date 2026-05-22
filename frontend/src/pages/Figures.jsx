@@ -20,15 +20,7 @@ export default function Figures() {
   const [loading, setLoading] = useState(true)
   const [modalFigure, setModalFigure] = useState(null)
   const [loadingVideo, setLoadingVideo] = useState(null)
-  const [videoRatios, setVideoRatios] = useState({})
   const [failedThumbnails, setFailedThumbnails] = useState({})
-
-  const handleVideoMetadata = (e, figId) => {
-    const v = e.target
-    if (v.videoWidth && v.videoHeight) {
-      setVideoRatios(prev => ({ ...prev, [figId]: v.videoWidth / v.videoHeight }))
-    }
-  }
 
   const handleThumbnailError = (figId) => {
     setFailedThumbnails(prev => ({ ...prev, [figId]: true }))
@@ -44,12 +36,6 @@ export default function Figures() {
       .then(data => { setFigures(data); setLoading(false) })
       .catch(() => setLoading(false))
   }, [activeLevel])
-
-  const getThumbnailUrl = (videoFileUrl) => {
-    if (!videoFileUrl) return null
-    const filename = videoFileUrl.split('/').pop()
-    return `/api/videos/thumbnails/${filename}`
-  }
 
   return (
     <section className="relative pt-28 pb-24 px-4 bg-dark-obsidian min-h-screen overflow-hidden">
@@ -87,8 +73,7 @@ export default function Figures() {
               <div key={fig.id} className="group relative overflow-hidden bg-dark-charcoal/90 rounded-[1.75rem] border border-white/10 hover:border-fire-red/40 transition-all hover:-translate-y-2 fire-glow-hover animate-fade-up" style={{ animationDelay: `${i * 75}ms` }}>
                 {fig.video_file_url ? (
                   <div
-                    className="bg-dark-ash overflow-hidden relative cursor-pointer"
-                    style={{ aspectRatio: videoRatios[fig.id] || '16/9' }}
+                    className="bg-dark-ash overflow-hidden relative cursor-pointer aspect-video"
                     onClick={() => setModalFigure(fig)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
@@ -100,17 +85,10 @@ export default function Figures() {
                     role="button"
                     aria-label={`Ver video de ${fig.name}`}
                   >
-                    {failedThumbnails[fig.id] ? (
-                      <div className="w-full h-full flex items-center justify-center bg-[radial-gradient(circle,rgba(230,57,70,.18),#1A1A2E)] group/card transition-all">
-                        <div className="flex flex-col items-center gap-2 transition-transform group-hover/card:scale-110">
-                          <Play className="w-14 h-14 text-fire-gold drop-shadow-lg" />
-                          <span className="text-fire-gold text-xs uppercase tracking-widest font-heading opacity-0 group-hover/card:opacity-100 transition-opacity">Reproducir</span>
-                        </div>
-                      </div>
-                    ) : (
+                    {fig.thumbnail_url && !failedThumbnails[fig.id] ? (
                       <>
                         <img
-                          src={getThumbnailUrl(fig.video_file_url)}
+                          src={fig.thumbnail_url}
                           alt={fig.name}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                           onError={() => handleThumbnailError(fig.id)}
@@ -122,6 +100,13 @@ export default function Figures() {
                           </div>
                         </div>
                       </>
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-[radial-gradient(circle,rgba(230,57,70,.18),#1A1A2E)] group/card transition-all">
+                        <div className="flex flex-col items-center gap-2 transition-transform group-hover/card:scale-110">
+                          <Play className="w-14 h-14 text-fire-gold drop-shadow-lg" />
+                          <span className="text-fire-gold text-xs uppercase tracking-widest font-heading opacity-0 group-hover/card:opacity-100 transition-opacity">Reproducir</span>
+                        </div>
+                      </div>
                     )}
                   </div>
                 ) : (
@@ -188,7 +173,7 @@ export default function Figures() {
                 playsInline
                 onCanPlay={() => setLoadingVideo(null)}
                 onLoadStart={() => setLoadingVideo(modalFigure.id)}
-                onLoadedMetadata={(e) => handleVideoMetadata(e, modalFigure.id)}
+                onLoadedMetadata={() => {}}
               />
             </div>
             <div className="p-4 sm:p-6 shrink-0">

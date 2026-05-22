@@ -16,9 +16,8 @@ def serialize_figure(fig: Figure) -> dict:
         "level": fig.level,
         "description": fig.description,
         "duration": fig.duration,
-        # Legacy fields kept for compatibility, but public UI now uses local files.
         "video_url": None,
-        "thumbnail_url": None,
+        "thumbnail_url": f"/api/videos/thumbnails/{video.thumbnail_filename}" if video and video.thumbnail_filename else None,
         "video_filename": video.filename if video else None,
         "video_file_url": f"/api/videos/files/{video.filename}" if video else None,
     }

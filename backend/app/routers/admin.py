@@ -113,6 +113,7 @@ def serialize_figure(fig: Figure) -> dict:
         "duration": fig.duration,
         "video_filename": video.filename if video else None,
         "video_file_url": f"/api/videos/files/{video.filename}" if video else None,
+        "thumbnail_url": f"/api/videos/thumbnails/{video.thumbnail_filename}" if video and video.thumbnail_filename else None,
     }
 
 
