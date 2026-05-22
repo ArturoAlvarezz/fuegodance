@@ -1,50 +1,41 @@
-from fastapi import APIRouter
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, Query, HTTPException
+from sqlalchemy.orm import Session, joinedload
 from typing import Optional
+from ..database import get_db
+from ..models import Figure
+from pydantic import BaseModel
 
 router = APIRouter()
 
 
-class Figure(BaseModel):
-    id: int
-    name: str
-    level: str  # basico, intermedio, avanzado
-    description: Optional[str] = None
-    video_url: str
-    thumbnail_url: Optional[str] = None
-    duration: Optional[str] = None
+def serialize_figure(fig: Figure) -> dict:
+    video = fig.videos[0] if getattr(fig, "videos", None) else None
+    return {
+        "id": fig.id,
+        "name": fig.name,
+        "level": fig.level,
+        "description": fig.description,
+        "duration": fig.duration,
+        # Legacy fields kept for compatibility, but public UI now uses local files.
+        "video_url": None,
+        "thumbnail_url": None,
+        "video_filename": video.filename if video else None,
+        "video_file_url": f"/api/videos/files/{video.filename}" if video else None,
+    }
 
 
-# Placeholder — will connect to DB
-MOCK_FIGURES = [
-    Figure(id=1, name="Dile que no", level="basico", video_url="", duration="2:30",
-           description="Figura básica de cambio de dirección"),
-    Figure(id=2, name="Enchufla", level="basico", video_url="", duration="3:10",
-           description="Giro de la follower debajo del brazo del leader"),
-    Figure(id=3, name="Vacilala", level="intermedio", video_url="", duration="4:20",
-           description="Figura donde la follower camina con estilo"),
-    Figure(id=4, name="Sombrero", level="intermedio", video_url="", duration="3:45",
-           description="Combinación de manos sobre la cabeza"),
-    Figure(id=5, name="Setenta", level="avanzado", video_url="", duration="5:00",
-           description="Figura compleja con múltiples giros"),
-    Figure(id=6, name="Coca-Cola", level="avanzado", video_url="", duration="4:15",
-           description="Giro con agarre cruzado y liberación"),
-]
-
-
-@router.get("/", response_model=list[Figure])
-def get_figures(level: Optional[str] = None):
-    """Get all figures, optionally filtered by level."""
+@router.get("/")
+def get_figures(level: Optional[str] = Query(None), db: Session = Depends(get_db)):
+    query = db.query(Figure).options(joinedload(Figure.videos))
     if level and level != "all":
-        return [f for f in MOCK_FIGURES if f.level == level]
-    return MOCK_FIGURES
+        query = query.filter(Figure.level == level)
+    figures = query.order_by(Figure.id).all()
+    return [serialize_figure(fig) for fig in figures]
 
 
-@router.get("/{figure_id}", response_model=Figure)
-def get_figure(figure_id: int):
-    """Get a single figure by ID."""
-    for f in MOCK_FIGURES:
-        if f.id == figure_id:
-            return f
-    from fastapi import HTTPException
-    raise HTTPException(status_code=404, detail="Figura no encontrada")
+@router.get("/{figure_id}")
+def get_figure(figure_id: int, db: Session = Depends(get_db)):
+    fig = db.query(Figure).options(joinedload(Figure.videos)).filter(Figure.id == figure_id).first()
+    if not fig:
+        raise HTTPException(status_code=404, detail="Figura no encontrada")
+    return serialize_figure(fig)

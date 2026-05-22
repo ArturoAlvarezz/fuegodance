@@ -1,36 +1,41 @@
-from fastapi import APIRouter, UploadFile, File
-from pydantic import BaseModel
+import os
+from fastapi import APIRouter, Depends
+from fastapi.responses import FileResponse
+from sqlalchemy.orm import Session
 from typing import Optional
-from datetime import datetime
+from ..database import get_db
+from ..models import GalleryPhoto
+from pydantic import BaseModel
 
 router = APIRouter()
 
+UPLOAD_DIR = "/app/uploads/gallery"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-class GalleryPhoto(BaseModel):
+
+class GalleryPhotoOut(BaseModel):
     id: int
-    src: str
-    alt: str
+    filename: str
+    alt: Optional[str] = None
     event: Optional[str] = None
-    date: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+    @property
+    def src(self):
+        return f"/api/gallery/files/{self.filename}"
 
 
-# Placeholder — will connect to DB + file storage
-MOCK_PHOTOS = [
-    GalleryPhoto(id=i, src=f"/api/gallery/files/{i}", alt=f"Social {i}",
-                 event=["Salsa Night", "Social Viernes", "Práctica Libre", "Festival Fuego"][i % 4],
-                 date=datetime.now())
-    for i in range(1, 13)
-]
+@router.get("/", response_model=list[GalleryPhotoOut])
+def get_photos(db: Session = Depends(get_db)):
+    return db.query(GalleryPhoto).order_by(GalleryPhoto.created_at.desc()).all()
 
 
-@router.get("/", response_model=list[GalleryPhoto])
-def get_photos():
-    """Get all gallery photos."""
-    return MOCK_PHOTOS
-
-
-@router.post("/upload")
-async def upload_photo(file: UploadFile = File(...), event: Optional[str] = None):
-    """Upload a new photo to the gallery."""
-    # TODO: Save to disk/CDN + create DB record
-    return {"filename": file.filename, "event": event, "status": "uploaded"}
+@router.get("/files/{filename}")
+def get_gallery_file(filename: str):
+    filepath = os.path.join(UPLOAD_DIR, filename)
+    if os.path.exists(filepath):
+        return FileResponse(filepath)
+    from fastapi import HTTPException
+    raise HTTPException(status_code=404, detail="Archivo no encontrado")

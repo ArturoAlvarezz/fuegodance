@@ -1,46 +1,32 @@
-import { Music, Users, Heart } from 'lucide-react'
+import { Music, Users, Heart, Sparkles } from 'lucide-react'
+
+const cards = [
+  { icon: Music, title: 'Salsa Casino', text: 'Figuras, vueltas, musicalidad y conexión real de pareja. Desde cero, sin miedo y con método.' },
+  { icon: Users, title: 'Comunidad', text: 'Clases, sociales y workshops para conocer gente, soltar la rutina y crecer bailando.' },
+  { icon: Heart, title: 'Energía Fuego', text: 'Aquí no solo aprendes pasos: vienes a disfrutar, reírte, conectar y prender la pista.' },
+]
 
 export default function About() {
   return (
-    <section className="py-20 px-4 bg-dark-charcoal">
-      <div className="max-w-7xl mx-auto">
-        <h2 className="font-heading text-5xl tracking-wider text-center mb-4">
-          SOBRE <span className="text-fire-gradient">FUEGO DANCE</span>
-        </h2>
-        <p className="text-silver text-center max-w-2xl mx-auto mb-12 leading-relaxed">
-          Más que una academia, somos una familia unida por la salsa.
-          Nuestro espacio es donde el ritmo se siente en cada paso.
-        </p>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div className="bg-dark-ash/50 rounded-xl p-8 text-center border border-dark-ash
-                          hover:border-fire-red/30 transition-all hover:-translate-y-1 fire-glow-hover">
-            <Music className="w-12 h-12 text-fire-orange mx-auto mb-4" />
-            <h3 className="font-heading text-2xl tracking-wider mb-2">Salsa & Ritmo</h3>
-            <p className="text-silver text-sm leading-relaxed">
-              Aprende los fundamentos de la salsa con instructors apasionados
-              que te guiarán paso a paso.
-            </p>
+    <section className="relative py-24 px-4 bg-dark-charcoal overflow-hidden">
+      <div className="absolute inset-0 fuego-grid opacity-20" />
+      <div className="relative max-w-7xl mx-auto">
+        <div className="grid lg:grid-cols-[.9fr_1.1fr] gap-12 items-center">
+          <div>
+            <div className="inline-flex items-center gap-2 text-fire-gold uppercase tracking-[.32em] text-xs mb-4"><Sparkles className="w-4 h-4" /> Escuela de baile</div>
+            <h2 className="font-heading text-5xl sm:text-7xl tracking-wider mb-6">NO ES SOLO BAILAR. ES <span className="text-fire-gradient">PERTENECER</span></h2>
+            <p className="text-silver/90 text-lg leading-relaxed mb-6">Fuego Dance nace como una comunidad salsera donde cada clase mezcla técnica, alegría y conexión. No importa si nunca has bailado: aquí comienzas desde cero y avanzas a tu ritmo.</p>
+            <p className="text-muted leading-relaxed">La identidad del Instagram lo deja claro: clases para todos, energía social, ciudades activas y una familia que no para de crecer en Curicó, Talca y Rancagua.</p>
           </div>
 
-          <div className="bg-dark-ash/50 rounded-xl p-8 text-center border border-dark-ash
-                          hover:border-fire-red/30 transition-all hover:-translate-y-1 fire-glow-hover">
-            <Users className="w-12 h-12 text-fire-gold mx-auto mb-4" />
-            <h3 className="font-heading text-2xl tracking-wider mb-2">Comunidad</h3>
-            <p className="text-silver text-sm leading-relaxed">
-              Únete a sociales, eventos y practicas donde conocerás a otros
-              bailarines y crecerás juntos.
-            </p>
-          </div>
-
-          <div className="bg-dark-ash/50 rounded-xl p-8 text-center border border-dark-ash
-                          hover:border-fire-red/30 transition-all hover:-translate-y-1 fire-glow-hover">
-            <Heart className="w-12 h-12 text-fire-red mx-auto mb-4" />
-            <h3 className="font-heading text-2xl tracking-wider mb-2">Pasión</h3>
-            <p className="text-silver text-sm leading-relaxed">
-              No solo enseñamos pasos, transmitimos la pasión que hace
-              que la salsa sea más que un baile.
-            </p>
+          <div className="grid sm:grid-cols-3 lg:grid-cols-1 gap-5">
+            {cards.map((card, i) => (
+              <div key={card.title} className="group rounded-[1.75rem] border border-white/10 bg-white/[0.045] p-6 backdrop-blur-xl hover:border-fire-orange/40 hover:-translate-y-1 transition-all animate-fade-up" style={{ animationDelay: `${i * 120}ms` }}>
+                <card.icon className="w-10 h-10 text-fire-orange mb-4 group-hover:scale-110 group-hover:rotate-6 transition-transform" />
+                <h3 className="font-heading text-3xl tracking-wider mb-2">{card.title}</h3>
+                <p className="text-silver/80 text-sm leading-relaxed">{card.text}</p>
+              </div>
+            ))}
           </div>
         </div>
       </div>
