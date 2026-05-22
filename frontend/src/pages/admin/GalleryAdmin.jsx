@@ -1,9 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
-import { useApi } from '../../hooks/useAuth'
+import { useNavigate } from 'react-router-dom'
+import { useApi, useAuth } from '../../hooks/useAuth'
 import { Upload, Trash2, Image, X } from 'lucide-react'
 
 export default function GalleryAdmin() {
   const { apiFetch, authHeaders } = useApi()
+  const { logout } = useAuth()
+  const navigate = useNavigate()
   const [photos, setPhotos] = useState([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
@@ -11,10 +14,20 @@ export default function GalleryAdmin() {
   const [dragOver, setDragOver] = useState(false)
   const fileRef = useRef()
 
+  const handleAuthError = () => {
+    logout()
+    navigate('/admin/login')
+  }
+
   const load = async () => {
     try {
       const res = await apiFetch('/api/admin/gallery/')
-      setPhotos(await res.json())
+      if (!res.ok) {
+        if (res.status === 401) { handleAuthError(); return }
+        throw new Error(`Error ${res.status}`)
+      }
+      const data = await res.json()
+      setPhotos(Array.isArray(data) ? data : [])
     } catch (e) { console.error(e) }
     setLoading(false)
   }

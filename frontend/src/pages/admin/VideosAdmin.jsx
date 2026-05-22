@@ -1,9 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
-import { useApi } from '../../hooks/useAuth'
+import { useNavigate } from 'react-router-dom'
+import { useApi, useAuth } from '../../hooks/useAuth'
 import { Upload, Trash2, Video, X } from 'lucide-react'
 
 export default function VideosAdmin() {
   const { apiFetch } = useApi()
+  const { logout } = useAuth()
+  const navigate = useNavigate()
   const [videos, setVideos] = useState([])
   const [figures, setFigures] = useState([])
   const [loading, setLoading] = useState(true)
@@ -14,14 +17,29 @@ export default function VideosAdmin() {
   const videoRef = useRef()
   const thumbRef = useRef()
 
+  const handleAuthError = () => {
+    logout()
+    navigate('/admin/login')
+  }
+
   const load = async () => {
     try {
       const [vRes, fRes] = await Promise.all([
         apiFetch('/api/admin/videos/'),
         apiFetch('/api/figures/'),
       ])
-      setVideos(await vRes.json())
-      setFigures(await fRes.json())
+      if (!vRes.ok) {
+        if (vRes.status === 401) { handleAuthError(); return }
+        throw new Error(`Error ${vRes.status}`)
+      }
+      if (!fRes.ok) {
+        if (fRes.status === 401) { handleAuthError(); return }
+        throw new Error(`Error ${fRes.status}`)
+      }
+      const vData = await vRes.json()
+      const fData = await fRes.json()
+      setVideos(Array.isArray(vData) ? vData : [])
+      setFigures(Array.isArray(fData) ? fData : [])
     } catch (e) { console.error(e) }
     setLoading(false)
   }

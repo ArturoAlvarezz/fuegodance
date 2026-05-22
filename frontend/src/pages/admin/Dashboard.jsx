@@ -1,11 +1,19 @@
 import { useState, useEffect } from 'react'
-import { useApi } from '../../hooks/useAuth'
+import { useNavigate } from 'react-router-dom'
+import { useApi, useAuth } from '../../hooks/useAuth'
 import { Music, Camera, Video, Mail } from 'lucide-react'
 
 export default function Dashboard() {
   const { apiFetch } = useApi()
+  const { logout } = useAuth()
+  const navigate = useNavigate()
   const [stats, setStats] = useState({ figures: 0, photos: 0, videos: 0, messages: 0 })
   const [loading, setLoading] = useState(true)
+
+  const handleAuthError = () => {
+    logout()
+    navigate('/admin/login')
+  }
 
   useEffect(() => {
     async function load() {
@@ -16,14 +24,20 @@ export default function Dashboard() {
           apiFetch('/api/admin/videos/'),
           apiFetch('/api/admin/contact/'),
         ])
+        for (const res of [figRes, galRes, vidRes, msgRes]) {
+          if (!res.ok) {
+            if (res.status === 401) { handleAuthError(); return }
+            throw new Error(`Error ${res.status}`)
+          }
+        }
         const [figures, photos, videos, messages] = await Promise.all([
           figRes.json(), galRes.json(), vidRes.json(), msgRes.json(),
         ])
         setStats({
-          figures: figures.length,
-          photos: photos.length,
-          videos: videos.length,
-          messages: messages.length,
+          figures: Array.isArray(figures) ? figures.length : 0,
+          photos: Array.isArray(photos) ? photos.length : 0,
+          videos: Array.isArray(videos) ? videos.length : 0,
+          messages: Array.isArray(messages) ? messages.length : 0,
         })
       } catch (e) {
         console.error(e)

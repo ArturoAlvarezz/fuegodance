@@ -1,11 +1,14 @@
 import { useState, useEffect, useRef } from 'react'
-import { useApi } from '../../hooks/useAuth'
+import { useNavigate } from 'react-router-dom'
+import { useApi, useAuth } from '../../hooks/useAuth'
 import { Plus, Pencil, Trash2, X, Video } from 'lucide-react'
 
 const emptyForm = { name: '', level: 'basico' }
 
 export default function FiguresAdmin() {
   const { apiFetch, authHeaders } = useApi()
+  const { logout } = useAuth()
+  const navigate = useNavigate()
   const [figures, setFigures] = useState([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
@@ -16,10 +19,20 @@ export default function FiguresAdmin() {
   const [videoFile, setVideoFile] = useState(null)
   const videoInputRef = useRef(null)
 
+  const handleAuthError = () => {
+    logout()
+    navigate('/admin/login')
+  }
+
   const load = async () => {
     try {
       const res = await apiFetch('/api/admin/figures/')
-      setFigures(await res.json())
+      if (!res.ok) {
+        if (res.status === 401) { handleAuthError(); return }
+        throw new Error(`Error ${res.status}`)
+      }
+      const data = await res.json()
+      setFigures(Array.isArray(data) ? data : [])
     } catch (e) { console.error(e) }
     setLoading(false)
   }

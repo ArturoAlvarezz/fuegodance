@@ -1,17 +1,30 @@
 import { useState, useEffect } from 'react'
-import { useApi } from '../../hooks/useAuth'
+import { useNavigate } from 'react-router-dom'
+import { useApi, useAuth } from '../../hooks/useAuth'
 import { Mail, Clock, User, AtSign } from 'lucide-react'
 
 export default function MessagesAdmin() {
   const { apiFetch } = useApi()
+  const { logout } = useAuth()
+  const navigate = useNavigate()
   const [messages, setMessages] = useState([])
   const [loading, setLoading] = useState(true)
+
+  const handleAuthError = () => {
+    logout()
+    navigate('/admin/login')
+  }
 
   useEffect(() => {
     async function load() {
       try {
         const res = await apiFetch('/api/admin/contact/')
-        setMessages(await res.json())
+        if (!res.ok) {
+          if (res.status === 401) { handleAuthError(); return }
+          throw new Error(`Error ${res.status}`)
+        }
+        const data = await res.json()
+        setMessages(Array.isArray(data) ? data : [])
       } catch (e) { console.error(e) }
       setLoading(false)
     }
