@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Camera, X, ChevronDown, ChevronRight } from 'lucide-react'
+import { Helmet } from 'react-helmet-async'
 
 export default function Gallery() {
   const [photos, setPhotos] = useState([])
@@ -40,6 +41,15 @@ export default function Gallery() {
   }
 
   return (
+    <>
+    <Helmet>
+      <title>Galería de Fotos — Sociales y Eventos | Fuego Dance</title>
+      <meta name="description" content="Galería de fotos de Fuego Dance: sociales, eventos y momentos de nuestras clases de Salsa Casino en Curicó, Talca y Rancagua." />
+      <link rel="canonical" href="https://fuegodance.arturoalvarez.site/galeria" />
+      <meta property="og:title" content="Galería de Fotos — Fuego Dance" />
+      <meta property="og:description" content="Sociales, eventos y momentos de nuestras clases de Salsa Casino." />
+      <meta property="og:url" content="https://fuegodance.arturoalvarez.site/galeria" />
+    </Helmet>
     <section className="pt-24 pb-20 px-4 bg-dark-obsidian min-h-screen">
       <div className="max-w-7xl mx-auto">
         <div className="flex items-center justify-center gap-3 mb-4">
@@ -141,5 +151,6 @@ export default function Gallery() {
         </div>
       )}
     </section>
+    </>
   )
 }

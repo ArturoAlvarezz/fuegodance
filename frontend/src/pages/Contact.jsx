@@ -1,8 +1,18 @@
 import { MapPin, Instagram, Clock, MessageCircle } from 'lucide-react'
 import { CONTACT, LOCATIONS } from '../data/fuegoContent'
+import { Helmet } from 'react-helmet-async'
 
 export default function Contact() {
   return (
+    <>
+    <Helmet>
+      <title>Contacto — Reserva tu Clase Gratis | Fuego Dance</title>
+      <meta name="description" content="Contacta Fuego Dance: WhatsApp, Instagram y sedes en Curicó, Talca y Rancagua. Reserva tu primera clase de Salsa Casino gratis." />
+      <link rel="canonical" href="https://fuegodance.arturoalvarez.site/contacto" />
+      <meta property="og:title" content="Contacto — Fuego Dance" />
+      <meta property="og:description" content="Reserva tu primera clase de Salsa Casino gratis en Curicó, Talca o Rancagua." />
+      <meta property="og:url" content="https://fuegodance.arturoalvarez.site/contacto" />
+    </Helmet>
     <section className="relative pt-28 pb-20 px-4 bg-dark-obsidian min-h-screen overflow-hidden">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(230,57,70,.18),transparent_28%),radial-gradient(circle_at_85%_30%,rgba(252,191,73,.12),transparent_30%)]" />
       <div className="relative max-w-7xl mx-auto">
@@ -32,5 +42,6 @@ export default function Contact() {
         </div>
       </div>
     </section>
+    </>
   )
 }

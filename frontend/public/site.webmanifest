@@ -1,0 +1,13 @@
+{
+  "name": "Fuego Dance — Academia de Salsa",
+  "short_name": "Fuego Dance",
+  "description": "Academia de Salsa Casino en Curicó, Talca y Rancagua. Clases para todos los niveles, comunidad y pista encendida.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0D0D0D",
+  "theme_color": "#E63946",
+  "icons": [
+    { "src": "/android-chrome-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/android-chrome-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
