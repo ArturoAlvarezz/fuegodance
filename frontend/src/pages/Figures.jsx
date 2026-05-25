@@ -43,10 +43,10 @@ export default function Figures() {
     <Helmet>
       <title>Figuras de Salsa Casino — Videos y Figuras | Fuego Dance</title>
       <meta name="description" content="Biblioteca de figuras de Salsa Casino con videos. Aprende Tijeras, Kentucky, Besito, Sabadazo y más. Nivel básico, intermedio y avanzado." />
-      <link rel="canonical" href="https://fuegodance.arturoalvarez.site/figuras" />
+      <link rel="canonical" href="https://fuegodance.cl/figuras" />
       <meta property="og:title" content="Figuras de Salsa Casino — Fuego Dance" />
       <meta property="og:description" content="Videos de figuras de Salsa Casino: Tijeras, Kentucky, Besito y más. Todos los niveles." />
-      <meta property="og:url" content="https://fuegodance.arturoalvarez.site/figuras" />
+      <meta property="og:url" content="https://fuegodance.cl/figuras" />
     </Helmet>
     <section className="relative pt-28 pb-24 px-4 bg-dark-obsidian min-h-screen overflow-hidden">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_10%,rgba(230,57,70,.18),transparent_28%),radial-gradient(circle_at_80%_20%,rgba(247,127,0,.12),transparent_34%)]" />

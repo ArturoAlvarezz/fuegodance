@@ -36,7 +36,7 @@ app.add_middleware(
         "http://localhost:3000",
         "http://localhost:8080",
         "http://localhost:8083",
-        "https://fuegodance.arturoalvarez.site",
+        "https://fuegodance.cl",
         "https://fuegodance.com",
     ],
     allow_credentials=True,

@@ -26,7 +26,6 @@ export default function Footer() {
               <li><a href="/galeria" className="hover:text-fire-orange transition-colors">Galería</a></li>
               <li><a href="/figuras" className="hover:text-fire-orange transition-colors">Figuras</a></li>
               <li><a href="/contacto" className="hover:text-fire-orange transition-colors">Contacto</a></li>
-              <li><a href="/admin" className="hover:text-fire-orange transition-colors">Admin</a></li>
             </ul>
           </div>
 

@@ -8,10 +8,10 @@ export default function Contact() {
     <Helmet>
       <title>Contacto — Reserva tu Clase Gratis | Fuego Dance</title>
       <meta name="description" content="Contacta Fuego Dance: WhatsApp, Instagram y sedes en Curicó, Talca y Rancagua. Reserva tu primera clase de Salsa Casino gratis." />
-      <link rel="canonical" href="https://fuegodance.arturoalvarez.site/contacto" />
+      <link rel="canonical" href="https://fuegodance.cl/contacto" />
       <meta property="og:title" content="Contacto — Fuego Dance" />
       <meta property="og:description" content="Reserva tu primera clase de Salsa Casino gratis en Curicó, Talca o Rancagua." />
-      <meta property="og:url" content="https://fuegodance.arturoalvarez.site/contacto" />
+      <meta property="og:url" content="https://fuegodance.cl/contacto" />
     </Helmet>
     <section className="relative pt-28 pb-20 px-4 bg-dark-obsidian min-h-screen overflow-hidden">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(230,57,70,.18),transparent_28%),radial-gradient(circle_at_85%_30%,rgba(252,191,73,.12),transparent_30%)]" />
@@ -34,7 +34,7 @@ export default function Contact() {
               <div key={loc.city} className="rounded-[1.5rem] border border-white/10 bg-white/[0.045] p-5 backdrop-blur-xl">
                 <MapPin className="w-6 h-6 text-fire-red mb-3" />
                 <h3 className="font-heading text-2xl tracking-wider mb-1">{loc.city}</h3>
-                <p className="text-xs text-silver mb-3">{loc.address}</p>
+                <a href={loc.mapaUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-silver mb-3 hover:text-fire-orange transition-colors block">{loc.address}</a>
                 <div className="flex items-center gap-2 text-xs text-muted"><Clock className="w-3 h-3" /> {loc.days}</div>
               </div>
             ))}

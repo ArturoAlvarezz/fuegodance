@@ -45,10 +45,10 @@ export default function Gallery() {
     <Helmet>
       <title>Galería de Fotos — Sociales y Eventos | Fuego Dance</title>
       <meta name="description" content="Galería de fotos de Fuego Dance: sociales, eventos y momentos de nuestras clases de Salsa Casino en Curicó, Talca y Rancagua." />
-      <link rel="canonical" href="https://fuegodance.arturoalvarez.site/galeria" />
+      <link rel="canonical" href="https://fuegodance.cl/galeria" />
       <meta property="og:title" content="Galería de Fotos — Fuego Dance" />
       <meta property="og:description" content="Sociales, eventos y momentos de nuestras clases de Salsa Casino." />
-      <meta property="og:url" content="https://fuegodance.arturoalvarez.site/galeria" />
+      <meta property="og:url" content="https://fuegodance.cl/galeria" />
     </Helmet>
     <section className="pt-24 pb-20 px-4 bg-dark-obsidian min-h-screen">
       <div className="max-w-7xl mx-auto">
