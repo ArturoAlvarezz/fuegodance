@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useState, useCallback } from 'react'
 
 const AuthContext = createContext(null)
 
@@ -83,22 +83,22 @@ export function useAuth() {
 
 export function useApi() {
   const { authHeaders } = useAuth()
-  const apiFetch = (url, options = {}) => {
+  const apiFetch = useCallback((url, options = {}) => {
     return fetch(url, {
       ...options,
       headers: { ...authHeaders, ...options.headers },
     })
-  }
+  }, [authHeaders])
   return { apiFetch, authHeaders }
 }
 
 export function useUserApi() {
   const { userAuthHeaders } = useAuth()
-  const userApiFetch = (url, options = {}) => {
+  const userApiFetch = useCallback((url, options = {}) => {
     return fetch(url, {
       ...options,
       headers: { ...userAuthHeaders, ...options.headers },
     })
-  }
+  }, [userAuthHeaders])
   return { userApiFetch, userAuthHeaders }
 }

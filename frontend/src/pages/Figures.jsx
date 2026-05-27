@@ -58,7 +58,7 @@ export default function Figures() {
         setFigures([])
       })
       .finally(() => setLoading(false))
-  }, [activeLevel, userApiFetch])
+  }, [activeLevel])
 
   return (
     <>
