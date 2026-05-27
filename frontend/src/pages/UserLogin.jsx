@@ -102,6 +102,10 @@ export default function UserLogin() {
           </button>
         </form>
 
+        <p className="text-center text-muted text-sm mt-4">
+          Si no tienes una cuenta debes solicitarla con tu profesor
+        </p>
+
         <p className="text-center text-muted text-xs mt-6">
           <Link to="/" className="inline-flex items-center gap-1 hover:text-fire-orange transition-colors">
             <ArrowLeft className="w-3 h-3" /> Volver al inicio
