@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Play, Filter, Sparkles, Flame, Loader2, X } from 'lucide-react'
 import { Helmet } from 'react-helmet-async'
+import { useUserApi } from '../hooks/useAuth'
 
 const levels = [
   { id: 'all', label: 'Todos' },
@@ -16,9 +17,11 @@ const levelColors = {
 }
 
 export default function Figures() {
+  const { userApiFetch } = useUserApi()
   const [activeLevel, setActiveLevel] = useState('all')
   const [figures, setFigures] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [modalFigure, setModalFigure] = useState(null)
   const [loadingVideo, setLoadingVideo] = useState(null)
   const [failedThumbnails, setFailedThumbnails] = useState({})
@@ -31,12 +34,31 @@ export default function Figures() {
     setModalFigure(null)
     setLoadingVideo(null)
     setFailedThumbnails({})
+    setError(null)
     setLoading(true)
-    fetch(`/api/figures/${activeLevel !== 'all' ? `?level=${activeLevel}` : ''}`)
-      .then(r => r.json())
-      .then(data => { setFigures(data); setLoading(false) })
-      .catch(() => setLoading(false))
-  }, [activeLevel])
+
+    const url = `/api/figures/${activeLevel !== 'all' ? `?level=${activeLevel}` : ''}`
+    userApiFetch(url)
+      .then(async (r) => {
+        if (r.status === 401) {
+          setError('unauthorized')
+          setFigures([])
+          return
+        }
+        if (!r.ok) {
+          setError('fetch')
+          setFigures([])
+          return
+        }
+        const data = await r.json()
+        setFigures(Array.isArray(data) ? data : [])
+      })
+      .catch(() => {
+        setError('fetch')
+        setFigures([])
+      })
+      .finally(() => setLoading(false))
+  }, [activeLevel, userApiFetch])
 
   return (
     <>
@@ -75,6 +97,33 @@ export default function Figures() {
 
         {loading ? (
           <div className="flex justify-center py-20"><div className="h-12 w-12 rounded-full border-4 border-fire-red/30 border-t-fire-red animate-spin" /></div>
+        ) : error === 'unauthorized' ? (
+          <div className="relative max-w-3xl mx-auto rounded-[2rem] border border-fire-red/25 bg-white/[0.045] p-10 text-center backdrop-blur-xl overflow-hidden">
+            <div className="absolute -top-24 left-1/2 -translate-x-1/2 h-48 w-48 rounded-full bg-fire-red/20 blur-3xl" />
+            <Flame className="relative w-16 h-16 text-fire-red mx-auto mb-5 animate-floaty" />
+            <h3 className="relative font-heading text-4xl tracking-wider mb-3">SESIÓN REQUERIDA</h3>
+            <p className="relative text-silver/85 leading-relaxed mb-6">
+              Las figuras de salsa casino son contenido exclusivo para alumnos registrados.
+              Inicia sesión con tu teléfono para acceder.
+            </p>
+            <a href="/login" className="relative inline-block px-7 py-3 rounded-2xl bg-fire-red text-white font-heading text-xl tracking-wider fire-glow hover:bg-fire-orange transition-all">INICIAR SESIÓN</a>
+          </div>
+        ) : error === 'fetch' ? (
+          <div className="relative max-w-3xl mx-auto rounded-[2rem] border border-fire-red/25 bg-white/[0.045] p-10 text-center backdrop-blur-xl overflow-hidden">
+            <div className="absolute -top-24 left-1/2 -translate-x-1/2 h-48 w-48 rounded-full bg-fire-red/20 blur-3xl" />
+            <Flame className="relative w-16 h-16 text-fire-red mx-auto mb-5 animate-floaty" />
+            <h3 className="relative font-heading text-4xl tracking-wider mb-3">ERROR AL CARGAR</h3>
+            <p className="relative text-silver/85 leading-relaxed mb-6">
+              No se pudieron cargar las figuras. Inténtalo de nuevo más tarde.
+            </p>
+            <button
+              type="button"
+              onClick={() => setActiveLevel(activeLevel)}
+              className="relative inline-block px-7 py-3 rounded-2xl bg-fire-red text-white font-heading text-xl tracking-wider fire-glow hover:bg-fire-orange transition-all"
+            >
+              REINTENTAR
+            </button>
+          </div>
         ) : figures.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {figures.map((fig, i) => (

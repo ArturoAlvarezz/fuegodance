@@ -37,12 +37,6 @@ export default function UserLogin() {
     }
   }
 
-  const formatPhone = (value) => {
-    const digits = value.replace(/\D/g, '').slice(0, 9)
-    if (digits.length > 0) return `+56 ${digits}`
-    return digits
-  }
-
   return (
     <div className="min-h-screen bg-dark-obsidian flex items-center justify-center px-4">
       <div className="w-full max-w-md">
@@ -65,21 +59,23 @@ export default function UserLogin() {
 
           <div>
             <label className="block text-silver text-sm font-medium mb-2">
-              Teléfono <span className="text-muted">(9 dígitos)</span>
+              Teléfono <span className="text-muted">(9 dígitos, Chile)</span>
             </label>
-            <input
-              type="tel"
-              inputMode="numeric"
-              value={formatPhone(phone)}
-              onChange={(e) => {
-                const raw = e.target.value.replace(/\D/g, '')
-                setPhone(raw)
-              }}
-              className="w-full px-4 py-3 bg-dark-ash border border-dark-ash rounded-lg text-white
-                focus:border-fire-red focus:ring-1 focus:ring-fire-red outline-none transition-all"
-              placeholder="+56 912345678"
-              required
-            />
+            <div className="flex items-center bg-dark-ash border border-dark-ash rounded-lg focus-within:border-fire-red focus-within:ring-1 focus-within:ring-fire-red transition-all overflow-hidden">
+              <span className="pl-4 pr-2 text-muted text-sm select-none shrink-0">+56</span>
+              <input
+                type="tel"
+                inputMode="numeric"
+                value={phone}
+                onChange={(e) => {
+                  const raw = e.target.value.replace(/\D/g, '').slice(0, 9)
+                  setPhone(raw)
+                }}
+                className="flex-1 px-2 py-3 bg-transparent text-white outline-none"
+                placeholder="912345678"
+                required
+              />
+            </div>
           </div>
 
           <div>
