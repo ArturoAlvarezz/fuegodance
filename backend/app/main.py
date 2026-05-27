@@ -3,11 +3,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 from .database import engine, Base
-from .models import Figure, GalleryPhoto, Video, ContactMessage, AdminUser
+from .models import Figure, GalleryPhoto, Video, ContactMessage, AdminUser, User
 from .auth import create_default_admin
 from .routers import figures, gallery, instagram, contact
 from .routers.videos import router as videos_router
 from .routers.admin import router as admin_router
+from .routers.users import router as users_router
 
 import os
 
@@ -50,6 +51,9 @@ app.include_router(gallery.router, prefix="/api/gallery", tags=["gallery"])
 app.include_router(videos_router, prefix="/api/videos", tags=["videos"])
 app.include_router(instagram.router, prefix="/api/instagram", tags=["instagram"])
 app.include_router(contact.router, prefix="/api/contact", tags=["contact"])
+
+# User auth
+app.include_router(users_router)
 
 # Admin routers
 app.include_router(admin_router, prefix="/api/admin", tags=["admin"])

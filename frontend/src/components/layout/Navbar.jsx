@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Menu, X, Instagram } from 'lucide-react'
+import { Menu, X, Instagram, LogIn, User, LogOut } from 'lucide-react'
+import { useAuth } from '../../hooks/useAuth'
 import logo from '../../assets/logo.jpg'
 import { CONTACT } from '../../data/fuegoContent'
 
@@ -13,7 +14,14 @@ const navLinks = [
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
+  const [showUserMenu, setShowUserMenu] = useState(false)
   const location = useLocation()
+  const { isLoggedIn, user, logoutUser } = useAuth()
+
+  const handleLogout = () => {
+    logoutUser()
+    setShowUserMenu(false)
+  }
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-dark-obsidian/70 backdrop-blur-2xl border-b border-white/10">
@@ -38,6 +46,50 @@ export default function Navbar() {
             <a href={CONTACT.instagramUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 text-white font-semibold text-sm rounded-xl hover:border-fire-red/60 hover:bg-fire-red/10 transition-all">
               <Instagram className="w-4 h-4 text-fire-red" /> {CONTACT.instagram}
             </a>
+
+            {/* User area: login button or user info */}
+            {isLoggedIn && user ? (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowUserMenu(!showUserMenu)}
+                  className="flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-silver hover:text-fire-gold hover:border-fire-gold/40 transition-all"
+                >
+                  <User className="w-4 h-4 text-fire-gold" />
+                  <span className="max-w-[120px] truncate font-semibold">{user.full_name}</span>
+                </button>
+
+                {showUserMenu && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setShowUserMenu(false)} />
+                    <div className="absolute right-0 mt-2 w-48 bg-dark-charcoal border border-white/10 rounded-xl shadow-2xl z-20 overflow-hidden animate-fade-up">
+                      <div className="px-4 py-3 border-b border-white/10">
+                        <p className="text-sm font-semibold text-white truncate">{user.full_name}</p>
+                        <p className="text-xs text-muted">+56 {user.phone}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleLogout}
+                        className="flex items-center gap-2 w-full px-4 py-3 text-sm text-silver hover:text-fire-red hover:bg-white/5 transition-all"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        Cerrar sesión
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : (
+              <Link
+                to="/login"
+                state={{ from: location.pathname }}
+                className="inline-flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 text-silver font-semibold text-sm rounded-xl hover:text-fire-orange hover:border-fire-orange/40 transition-all"
+              >
+                <LogIn className="w-4 h-4" />
+                Iniciar sesión
+              </Link>
+            )}
+
             <a href={CONTACT.whatsappUrl} target="_blank" rel="noopener noreferrer" className="px-5 py-2 bg-fire-red text-white font-heading tracking-wider rounded-xl hover:bg-fire-orange transition-all fire-glow-hover">
               ¡Únete!
             </a>
@@ -55,6 +107,40 @@ export default function Navbar() {
                 {link.label}
               </Link>
             ))}
+
+            {/* User area in mobile menu */}
+            {isLoggedIn && user ? (
+              <div className="py-3 border-t border-white/10 mt-3 pt-4">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-full bg-fire-red/20 flex items-center justify-center">
+                    <User className="w-5 h-5 text-fire-gold" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-white">{user.full_name}</p>
+                    <p className="text-xs text-muted">+56 {user.phone}</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { handleLogout(); setIsOpen(false) }}
+                  className="flex items-center gap-2 w-full px-4 py-3 bg-white/5 rounded-xl text-sm text-silver hover:text-fire-red transition-all"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Cerrar sesión
+                </button>
+              </div>
+            ) : (
+              <Link
+                to="/login"
+                state={{ from: location.pathname }}
+                onClick={() => setIsOpen(false)}
+                className="flex items-center gap-2 py-3 mt-3 font-body text-sm font-semibold tracking-wide text-silver hover:text-fire-orange transition-colors"
+              >
+                <LogIn className="w-4 h-4" />
+                Iniciar sesión
+              </Link>
+            )}
+
             <a href={CONTACT.whatsappUrl} target="_blank" rel="noopener noreferrer" className="block mt-3 px-5 py-3 bg-fire-red text-white font-heading tracking-wider rounded-xl text-center hover:bg-fire-orange transition-all">
               Reservar clase
             </a>

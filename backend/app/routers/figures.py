@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session, joinedload
 from typing import Optional
 from ..database import get_db
 from ..models import Figure
+from ..auth import get_authenticated_user
 from pydantic import BaseModel
 
 router = APIRouter()
@@ -24,7 +25,11 @@ def serialize_figure(fig: Figure) -> dict:
 
 
 @router.get("/")
-def get_figures(level: Optional[str] = Query(None), db: Session = Depends(get_db)):
+def get_figures(
+    level: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+    _user: dict = Depends(get_authenticated_user),
+):
     query = db.query(Figure).options(joinedload(Figure.videos))
     if level and level != "all":
         query = query.filter(Figure.level == level)
@@ -33,7 +38,11 @@ def get_figures(level: Optional[str] = Query(None), db: Session = Depends(get_db
 
 
 @router.get("/{figure_id}")
-def get_figure(figure_id: int, db: Session = Depends(get_db)):
+def get_figure(
+    figure_id: int,
+    db: Session = Depends(get_db),
+    _user: dict = Depends(get_authenticated_user),
+):
     fig = db.query(Figure).options(joinedload(Figure.videos)).filter(Figure.id == figure_id).first()
     if not fig:
         raise HTTPException(status_code=404, detail="Figura no encontrada")

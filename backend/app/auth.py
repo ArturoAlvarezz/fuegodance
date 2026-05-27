@@ -10,11 +10,14 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 1440  # 24 hours
 
 security = HTTPBearer()
 
+
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
+
 def verify_password(plain: str, hashed: str) -> bool:
     return bcrypt.checkpw(plain.encode(), hashed.encode())
+
 
 def create_access_token(data: dict) -> str:
     to_encode = data.copy()
@@ -22,7 +25,22 @@ def create_access_token(data: dict) -> str:
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+
+def create_admin_token(username: str) -> str:
+    return create_access_token({"sub": username, "role": "admin"})
+
+
+def create_user_token(user_id: int, full_name: str, phone: str) -> str:
+    return create_access_token({
+        "sub": phone,
+        "role": "user",
+        "user_id": user_id,
+        "full_name": full_name,
+    })
+
+
+async def get_current_admin(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Requires a valid admin token."""
     token = credentials.credentials
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -31,12 +49,45 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        role = payload.get("role")
+        if role != "admin":
+            raise credentials_exception
         username: str = payload.get("sub")
         if username is None:
             raise credentials_exception
     except JWTError:
         raise credentials_exception
     return username
+
+
+async def get_authenticated_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Accepts both user and admin tokens. Returns dict with role, sub, and optional user_id/full_name."""
+    token = credentials.credentials
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Token inválido o sesión expirada",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        role = payload.get("role")
+        if role not in ("admin", "user"):
+            raise credentials_exception
+        sub = payload.get("sub")
+        if sub is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+    return {
+        "sub": sub,
+        "role": role,
+        "user_id": payload.get("user_id"),
+        "full_name": payload.get("full_name"),
+    }
+
+
+# Keep backward compatibility — existing code that imports get_current_user still works
+get_current_user = get_current_admin
 
 
 def create_default_admin():

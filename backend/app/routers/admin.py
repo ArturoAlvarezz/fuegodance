@@ -4,10 +4,10 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session, joinedload
 from typing import Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from ..database import get_db
-from ..models import Figure, GalleryPhoto, Video, ContactMessage, AdminUser
-from ..auth import get_current_user, verify_password, create_access_token
+from ..models import Figure, GalleryPhoto, Video, ContactMessage, AdminUser, User
+from ..auth import get_current_admin, verify_password, hash_password, create_admin_token
 
 router = APIRouter(prefix="", tags=["admin"])
 
@@ -128,18 +128,18 @@ def login(data: LoginIn, db: Session = Depends(get_db)):
     user = db.query(AdminUser).filter(AdminUser.username == data.username).first()
     if not user or not verify_password(data.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Credenciales inválidas")
-    token = create_access_token({"sub": user.username})
+    token = create_admin_token(user.username)
     return {"access_token": token, "token_type": "bearer"}
 
 
 # ── FIGURES CRUD (videos are uploaded files, not external URLs) ──
-@router.get("/figures/", dependencies=[Depends(get_current_user)])
+@router.get("/figures/", dependencies=[Depends(get_current_admin)])
 def admin_list_figures(db: Session = Depends(get_db)):
     figures = db.query(Figure).options(joinedload(Figure.videos)).order_by(Figure.id).all()
     return [serialize_figure(fig) for fig in figures]
 
 
-@router.post("/figures/", dependencies=[Depends(get_current_user)])
+@router.post("/figures/", dependencies=[Depends(get_current_admin)])
 def admin_create_figure(
     name: str = Form(...),
     level: str = Form(...),
@@ -169,7 +169,7 @@ def admin_create_figure(
     return serialize_figure(fig)
 
 
-@router.put("/figures/{figure_id}", dependencies=[Depends(get_current_user)])
+@router.put("/figures/{figure_id}", dependencies=[Depends(get_current_admin)])
 def admin_update_figure(
     figure_id: int,
     name: Optional[str] = Form(None),
@@ -209,7 +209,7 @@ def admin_update_figure(
     return serialize_figure(fig)
 
 
-@router.delete("/figures/{figure_id}", dependencies=[Depends(get_current_user)])
+@router.delete("/figures/{figure_id}", dependencies=[Depends(get_current_admin)])
 def admin_delete_figure(figure_id: int, db: Session = Depends(get_db)):
     fig = db.query(Figure).options(joinedload(Figure.videos)).filter(Figure.id == figure_id).first()
     if not fig:
@@ -224,12 +224,12 @@ def admin_delete_figure(figure_id: int, db: Session = Depends(get_db)):
 
 
 # ── GALLERY CRUD ──
-@router.get("/gallery/", dependencies=[Depends(get_current_user)])
+@router.get("/gallery/", dependencies=[Depends(get_current_admin)])
 def admin_list_gallery(db: Session = Depends(get_db)):
     return db.query(GalleryPhoto).order_by(GalleryPhoto.created_at.desc()).all()
 
 
-@router.post("/gallery/", dependencies=[Depends(get_current_user)])
+@router.post("/gallery/", dependencies=[Depends(get_current_admin)])
 async def admin_upload_gallery(
     file: UploadFile = File(...),
     event: Optional[str] = Form(None),
@@ -244,7 +244,7 @@ async def admin_upload_gallery(
     return photo
 
 
-@router.put("/gallery/{photo_id}", dependencies=[Depends(get_current_user)])
+@router.put("/gallery/{photo_id}", dependencies=[Depends(get_current_admin)])
 def admin_update_gallery(
     photo_id: int,
     event: Optional[str] = Form(None),
@@ -263,7 +263,7 @@ def admin_update_gallery(
     return photo
 
 
-@router.delete("/gallery/{photo_id}", dependencies=[Depends(get_current_user)])
+@router.delete("/gallery/{photo_id}", dependencies=[Depends(get_current_admin)])
 def admin_delete_gallery(photo_id: int, db: Session = Depends(get_db)):
     photo = db.query(GalleryPhoto).filter(GalleryPhoto.id == photo_id).first()
     if not photo:
@@ -275,12 +275,12 @@ def admin_delete_gallery(photo_id: int, db: Session = Depends(get_db)):
 
 
 # ── VIDEOS CRUD ──
-@router.get("/videos/", dependencies=[Depends(get_current_user)])
+@router.get("/videos/", dependencies=[Depends(get_current_admin)])
 def admin_list_videos(db: Session = Depends(get_db)):
     return db.query(Video).order_by(Video.created_at.desc()).all()
 
 
-@router.post("/videos/", dependencies=[Depends(get_current_user)])
+@router.post("/videos/", dependencies=[Depends(get_current_admin)])
 async def admin_upload_video(
     file: UploadFile = File(...),
     title: str = Form(...),
@@ -298,7 +298,7 @@ async def admin_upload_video(
     return video
 
 
-@router.delete("/videos/{video_id}", dependencies=[Depends(get_current_user)])
+@router.delete("/videos/{video_id}", dependencies=[Depends(get_current_admin)])
 def admin_delete_video(video_id: int, db: Session = Depends(get_db)):
     video = db.query(Video).filter(Video.id == video_id).first()
     if not video:
@@ -311,6 +311,113 @@ def admin_delete_video(video_id: int, db: Session = Depends(get_db)):
 
 
 # ── CONTACT MESSAGES ──
-@router.get("/contact/", dependencies=[Depends(get_current_user)])
+@router.get("/contact/", dependencies=[Depends(get_current_admin)])
 def admin_list_messages(db: Session = Depends(get_db)):
     return db.query(ContactMessage).order_by(ContactMessage.created_at.desc()).all()
+
+
+# ── USER MANAGEMENT ──
+class UserCreateIn(BaseModel):
+    full_name: str = Field(..., min_length=1, max_length=200)
+    phone: str = Field(..., min_length=9, max_length=20)
+    password: str = Field(..., min_length=4)
+
+
+class UserUpdateIn(BaseModel):
+    full_name: Optional[str] = Field(None, min_length=1, max_length=200)
+    phone: Optional[str] = Field(None, min_length=9, max_length=20)
+    password: Optional[str] = Field(None, min_length=4)
+
+
+class UserOut(BaseModel):
+    id: int
+    full_name: str
+    phone: str
+    is_active: int
+    created_at: str
+
+    class Config:
+        from_attributes = True
+
+
+@router.get("/users/", dependencies=[Depends(get_current_admin)])
+def admin_list_users(db: Session = Depends(get_db)):
+    users = db.query(User).order_by(User.created_at.desc()).all()
+    return [
+        {
+            "id": u.id,
+            "full_name": u.full_name,
+            "phone": u.phone,
+            "is_active": u.is_active,
+            "created_at": u.created_at.isoformat() if u.created_at else "",
+        }
+        for u in users
+    ]
+
+
+@router.post("/users/", dependencies=[Depends(get_current_admin)])
+def admin_create_user(data: UserCreateIn, db: Session = Depends(get_db)):
+    phone_clean = "".join(filter(str.isdigit, data.phone))
+    if len(phone_clean) != 9:
+        raise HTTPException(status_code=400, detail="El teléfono debe tener 9 dígitos")
+
+    existing = db.query(User).filter(User.phone == phone_clean).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Ya existe un usuario con ese teléfono")
+
+    user = User(
+        full_name=data.full_name,
+        phone=phone_clean,
+        hashed_password=hash_password(data.password),
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return {
+        "id": user.id,
+        "full_name": user.full_name,
+        "phone": user.phone,
+        "is_active": user.is_active,
+        "created_at": user.created_at.isoformat() if user.created_at else "",
+    }
+
+
+@router.put("/users/{user_id}", dependencies=[Depends(get_current_admin)])
+def admin_update_user(user_id: int, data: UserUpdateIn, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    if data.full_name is not None:
+        user.full_name = data.full_name
+    if data.phone is not None:
+        phone_clean = "".join(filter(str.isdigit, data.phone))
+        if len(phone_clean) != 9:
+            raise HTTPException(status_code=400, detail="El teléfono debe tener 9 dígitos")
+        existing = db.query(User).filter(User.phone == phone_clean, User.id != user_id).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Ya existe otro usuario con ese teléfono")
+        user.phone = phone_clean
+    if data.password is not None:
+        user.hashed_password = hash_password(data.password)
+
+    db.commit()
+    db.refresh(user)
+    return {
+        "id": user.id,
+        "full_name": user.full_name,
+        "phone": user.phone,
+        "is_active": user.is_active,
+        "created_at": user.created_at.isoformat() if user.created_at else "",
+    }
+
+
+@router.delete("/users/{user_id}", dependencies=[Depends(get_current_admin)])
+def admin_delete_user(user_id: int, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    db.delete(user)
+    db.commit()
+    return {"status": "deleted", "id": user_id}
+
