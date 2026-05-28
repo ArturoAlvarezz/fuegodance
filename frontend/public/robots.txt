@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+
+# No indexar áreas privadas
+Disallow: /admin/
+Disallow: /login
+
+Sitemap: https://fuegodance.cl/sitemap.xml
