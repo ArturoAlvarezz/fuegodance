@@ -1,6 +1,80 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Camera, X, ChevronDown, ChevronRight } from 'lucide-react'
 import { Helmet } from 'react-helmet-async'
+
+// ── LazyImage: carga imágenes solo cuando se acercan al viewport ──
+function LazyImage({ src, alt, className, 'aria-label': ariaLabel, onClick, onKeyDown, tabIndex, role }) {
+  const containerRef = useRef(null)
+  const [shouldLoad, setShouldLoad] = useState(false)
+  const [loaded, setLoaded] = useState(false)
+
+  // IntersectionObserver para detectar cuándo la imagen está cerca
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setShouldLoad(true)
+          observer.disconnect()
+        }
+      },
+      { rootMargin: '400px', threshold: 0.01 }
+    )
+    observer.observe(el)
+    const fallback = setTimeout(() => setShouldLoad(true), 5000)
+    return () => {
+      observer.disconnect()
+      clearTimeout(fallback)
+    }
+  }, [])
+
+  // Pre-cargar en memoria cuando shouldLoad se activa
+  useEffect(() => {
+    if (!shouldLoad || loaded) return
+    const img = new Image()
+    let cancelled = false
+    img.onload = () => { if (!cancelled) setLoaded(true) }
+    img.onerror = () => { if (!cancelled) setLoaded(true) }
+    img.src = src
+    return () => { cancelled = true }
+  }, [shouldLoad, loaded, src])
+
+  return (
+    <div
+      ref={containerRef}
+      className={`group relative rounded-xl overflow-hidden border border-dark-ash
+        hover:border-fire-orange/30 transition-all break-inside-avoid cursor-pointer ${className || ''}`}
+      onClick={onClick}
+      onKeyDown={onKeyDown}
+      tabIndex={tabIndex ?? 0}
+      role={role ?? 'button'}
+      aria-label={ariaLabel}
+    >
+      {/* Placeholder visible mientras carga */}
+      {!loaded && (
+        <div className="w-full aspect-[4/3] bg-dark-ash/40 flex items-center justify-center">
+          <div className="w-8 h-8 border-2 border-fire-orange/40 border-t-fire-orange rounded-full animate-spin" />
+        </div>
+      )}
+      {/* Imagen renderizada solo cuando ya cargó en memoria */}
+      {loaded && (
+        <img
+          src={src}
+          alt={alt || ''}
+          className="w-full object-cover group-hover:scale-105 transition-all duration-500"
+        />
+      )}
+      {/* Overlay hover */}
+      {loaded && (
+        <div className="absolute inset-0 bg-gradient-to-t from-dark-obsidian/80 via-transparent to-transparent
+          opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4 pointer-events-none">
+          <span className="font-heading text-lg tracking-wider text-fire-gold">{alt || ''}</span>
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default function Gallery() {
   const [photos, setPhotos] = useState([])
@@ -93,10 +167,11 @@ export default function Gallery() {
                 {!collapsed[eventName] && (
                   <div className="columns-1 sm:columns-2 lg:columns-3 gap-4 space-y-4">
                     {albums[eventName].map((photo) => (
-                      <div
+                      <LazyImage
                         key={photo.id}
-                        className="group relative rounded-xl overflow-hidden border border-dark-ash
-                          hover:border-fire-orange/30 transition-all break-inside-avoid cursor-pointer"
+                        src={`/api/gallery/files/${photo.filename}?v=2`}
+                        alt={photo.event || ''}
+                        aria-label={`Abrir foto de ${photo.event || 'galería'}`}
                         onClick={() => setLightbox(photo)}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' || e.key === ' ') {
@@ -104,22 +179,7 @@ export default function Gallery() {
                             setLightbox(photo)
                           }
                         }}
-                        tabIndex={0}
-                        role="button"
-                        aria-label={`Abrir foto de ${photo.event || 'galería'}`}
-                      >
-                        <img
-                          src={`/api/gallery/files/${photo.filename}?v=2`}
-                          alt={photo.alt || ''}
-                          className="w-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-dark-obsidian/80 via-transparent to-transparent
-                          opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
-                          <span className="font-heading text-lg tracking-wider text-fire-gold">
-                            {photo.event || ''}
-                          </span>
-                        </div>
-                      </div>
+                      />
                     ))}
                   </div>
                 )}

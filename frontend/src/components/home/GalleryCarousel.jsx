@@ -102,6 +102,7 @@ export default function GalleryCarousel() {
               <img
                 src={`/api/gallery/files/${getNeighbor(-2).filename}?v=2`}
                 alt=""
+                loading="lazy"
                 className="w-full h-48 object-cover"
                 draggable={false}
               />
@@ -114,6 +115,7 @@ export default function GalleryCarousel() {
               <img
                 src={`/api/gallery/files/${getNeighbor(2).filename}?v=2`}
                 alt=""
+                loading="lazy"
                 className="w-full h-48 object-cover"
                 draggable={false}
               />
