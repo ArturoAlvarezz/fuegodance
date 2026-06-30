@@ -73,6 +73,7 @@ def get_fallback_feed() -> list[dict]:
         {"code": "DZ8cvnGPKN5", "url": "https://www.instagram.com/p/DZ8cvnGPKN5/"},
         {"code": "DZ8cMlfPlH6", "url": "https://www.instagram.com/p/DZ8cMlfPlH6/"},
         {"code": "DZ8c6efPEpa", "url": "https://www.instagram.com/p/DZ8c6efPEpa/"},
+        {"code": "DaEE0i_P9Kd", "url": "https://www.instagram.com/p/DaEE0i_P9Kd/"},
     ]
     return [
         {

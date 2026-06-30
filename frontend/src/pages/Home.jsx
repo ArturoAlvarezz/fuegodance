@@ -1,5 +1,6 @@
 import Hero from '../components/home/Hero'
 import About from '../components/home/About'
+import UpcomingEvent from '../components/home/UpcomingEvent'
 import InstagramCarousel from '../components/home/InstagramCarousel'
 import Locations from '../components/home/Locations'
 import GalleryCarousel from '../components/home/GalleryCarousel'
@@ -18,6 +19,7 @@ export default function Home() {
       </Helmet>
       <Hero />
       <About />
+      <UpcomingEvent />
       <InstagramCarousel />
       <Locations />
       <GalleryCarousel />
