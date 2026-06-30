@@ -70,16 +70,6 @@ def get_fallback_feed() -> list[dict]:
     """Return a basic fallback if scraping fails completely."""
     # These are the known posts from the profile
     known_posts = [
-        {"code": "DYX1f9dj-IX", "url": "https://www.instagram.com/p/DYX1f9dj-IX/"},
-        {"code": "DX7jLVTvZ0r", "url": "https://www.instagram.com/p/DX7jLVTvZ0r/"},
-        {"code": "DYmncWPAMK0", "url": "https://www.instagram.com/p/DYmncWPAMK0/"},
-        {"code": "DYkO25dAHMa", "url": "https://www.instagram.com/p/DYkO25dAHMa/"},
-        {"code": "DYgM3sxAOiH", "url": "https://www.instagram.com/p/DYgM3sxAOiH/"},
-        {"code": "DYXW-t6gLLU", "url": "https://www.instagram.com/p/DYXW-t6gLLU/"},
-        {"code": "DYUeGKcgH5C", "url": "https://www.instagram.com/p/DYUeGKcgH5C/"},
-        {"code": "DX8Ic5QAGUP", "url": "https://www.instagram.com/p/DX8Ic5QAGUP/"},
-        {"code": "DXqJPZPgAFs", "url": "https://www.instagram.com/p/DXqJPZPgAFs/"},
-        {"code": "DXqICmHgBAV", "url": "https://www.instagram.com/p/DXqICmHgBAV/"},
         {"code": "DZ8cvnGPKN5", "url": "https://www.instagram.com/p/DZ8cvnGPKN5/"},
         {"code": "DZ8cMlfPlH6", "url": "https://www.instagram.com/p/DZ8cMlfPlH6/"},
         {"code": "DZ8c6efPEpa", "url": "https://www.instagram.com/p/DZ8c6efPEpa/"},

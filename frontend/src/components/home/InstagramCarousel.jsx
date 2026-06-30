@@ -12,7 +12,7 @@ export default function InstagramCarousel() {
       .then(r => r.json())
       .then(data => {
         if (Array.isArray(data) && data.length > 0) {
-          setPosts(data.slice(0, 10))
+          setPosts(data.slice(0, 3))
         }
         setLoading(false)
       })
