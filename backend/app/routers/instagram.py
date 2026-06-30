@@ -80,6 +80,9 @@ def get_fallback_feed() -> list[dict]:
         {"code": "DX8Ic5QAGUP", "url": "https://www.instagram.com/p/DX8Ic5QAGUP/"},
         {"code": "DXqJPZPgAFs", "url": "https://www.instagram.com/p/DXqJPZPgAFs/"},
         {"code": "DXqICmHgBAV", "url": "https://www.instagram.com/p/DXqICmHgBAV/"},
+        {"code": "DZ8cvnGPKN5", "url": "https://www.instagram.com/p/DZ8cvnGPKN5/"},
+        {"code": "DZ8cMlfPlH6", "url": "https://www.instagram.com/p/DZ8cMlfPlH6/"},
+        {"code": "DZ8c6efPEpa", "url": "https://www.instagram.com/p/DZ8c6efPEpa/"},
     ]
     return [
         {
