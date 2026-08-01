@@ -3,6 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import { useApi, useAuth } from '../../hooks/useAuth'
 import { Upload, Trash2, Image, X, FolderOpen, Edit3, Check } from 'lucide-react'
 
+// Convierte nombre de archivo a URL de thumbnail WebP
+const thumbUrl = (filename) => {
+  const stem = filename.replace(/\.[^.]+$/, '')
+  return `/images/thumbnails/${stem}.webp`
+}
+
 export default function GalleryAdmin() {
   const { apiFetch } = useApi()
   const { logout } = useAuth()
@@ -148,7 +154,7 @@ export default function GalleryAdmin() {
           {filteredPhotos.map((photo) => (
             <div key={photo.id} className="group relative rounded-xl overflow-hidden border border-dark-ash hover:border-fire-orange/30 transition-all bg-dark-charcoal">
               <div className="relative aspect-square overflow-hidden">
-                <img src={`/api/gallery/files/${photo.filename}`} alt={photo.alt || ''} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                <img src={thumbUrl(photo.filename)} alt={photo.alt || ''} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                 <div className="absolute inset-0 bg-dark-obsidian/70 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                   <button type="button" onClick={() => deletePhoto(photo.id)} className="p-3 bg-fire-red/90 rounded-xl hover:bg-fire-red transition-all">
                     <Trash2 className="w-5 h-5 text-white" />

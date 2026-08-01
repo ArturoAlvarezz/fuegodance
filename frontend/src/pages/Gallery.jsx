@@ -1,77 +1,43 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Camera, X, ChevronDown, ChevronRight } from 'lucide-react'
+import { Camera, X, ChevronDown, ChevronRight, Loader2 } from 'lucide-react'
 import { Helmet } from 'react-helmet-async'
 
-// ── LazyImage: carga imágenes solo cuando se acercan al viewport ──
-function LazyImage({ src, alt, className, 'aria-label': ariaLabel, onClick, onKeyDown, tabIndex, role }) {
-  const containerRef = useRef(null)
-  const [shouldLoad, setShouldLoad] = useState(false)
+// Convierte nombre de archivo (ej: "foto.jpg") a URL de WebP optimizado
+const thumbUrl = (filename) => {
+  const stem = filename.replace(/\.[^.]+$/, '')
+  return `/images/thumbnails/${stem}.webp`
+}
+const webUrl = (filename) => {
+  const stem = filename.replace(/\.[^.]+$/, '')
+  return `/images/web/${stem}.webp`
+}
+
+// Componente ImageWithLoader: muestra un spinner mientras se carga la imagen
+function ImageWithLoader({ src, alt, onClick, onKeyDown, tabIndex, role, 'aria-label': ariaLabel, className }) {
   const [loaded, setLoaded] = useState(false)
-
-  // IntersectionObserver para detectar cuándo la imagen está cerca
-  useEffect(() => {
-    const el = containerRef.current
-    if (!el) return
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setShouldLoad(true)
-          observer.disconnect()
-        }
-      },
-      { rootMargin: '400px', threshold: 0.01 }
-    )
-    observer.observe(el)
-    const fallback = setTimeout(() => setShouldLoad(true), 5000)
-    return () => {
-      observer.disconnect()
-      clearTimeout(fallback)
-    }
-  }, [])
-
-  // Pre-cargar en memoria cuando shouldLoad se activa
-  useEffect(() => {
-    if (!shouldLoad || loaded) return
-    const img = new Image()
-    let cancelled = false
-    img.onload = () => { if (!cancelled) setLoaded(true) }
-    img.onerror = () => { if (!cancelled) setLoaded(true) }
-    img.src = src
-    return () => { cancelled = true }
-  }, [shouldLoad, loaded, src])
+  const imgRef = useRef(null)
 
   return (
-    <div
-      ref={containerRef}
-      className={`group relative rounded-xl overflow-hidden border border-dark-ash
-        hover:border-fire-orange/30 transition-all break-inside-avoid cursor-pointer ${className || ''}`}
-      onClick={onClick}
-      onKeyDown={onKeyDown}
-      tabIndex={tabIndex ?? 0}
-      role={role ?? 'button'}
-      aria-label={ariaLabel}
-    >
-      {/* Placeholder visible mientras carga */}
+    <div className="relative">
       {!loaded && (
-        <div className="w-full aspect-[4/3] bg-dark-ash/40 flex items-center justify-center">
-          <div className="w-8 h-8 border-2 border-fire-orange/40 border-t-fire-orange rounded-full animate-spin" />
+        <div className="absolute inset-0 flex items-center justify-center bg-dark-ash/50 rounded-xl z-10">
+          <Loader2 className="w-8 h-8 text-fire-orange animate-spin" />
         </div>
       )}
-      {/* Imagen renderizada solo cuando ya cargó en memoria */}
-      {loaded && (
-        <img
-          src={src}
-          alt={alt || ''}
-          className="w-full object-cover group-hover:scale-105 transition-all duration-500"
-        />
-      )}
-      {/* Overlay hover */}
-      {loaded && (
-        <div className="absolute inset-0 bg-gradient-to-t from-dark-obsidian/80 via-transparent to-transparent
-          opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4 pointer-events-none">
-          <span className="font-heading text-lg tracking-wider text-fire-gold">{alt || ''}</span>
-        </div>
-      )}
+      <img
+        ref={imgRef}
+        src={src}
+        alt={alt || ''}
+        loading="lazy"
+        onLoad={() => setLoaded(true)}
+        onError={() => setLoaded(true)} // hide spinner even on error
+        className={`${className} ${loaded ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300`}
+        onClick={onClick}
+        onKeyDown={onKeyDown}
+        tabIndex={tabIndex}
+        role={role}
+        aria-label={ariaLabel}
+      />
     </div>
   )
 }
@@ -137,7 +103,9 @@ export default function Gallery() {
         </p>
 
         {loading ? (
-          <p className="text-center text-muted">Cargando galería...</p>
+          <div className="flex justify-center items-center py-20">
+            <Loader2 className="w-10 h-10 text-fire-orange animate-spin" />
+          </div>
         ) : photos.length === 0 ? (
           <div className="text-center py-12 text-muted">
             No hay fotos en la galería aún
@@ -167,11 +135,10 @@ export default function Gallery() {
                 {!collapsed[eventName] && (
                   <div className="columns-1 sm:columns-2 lg:columns-3 gap-4 space-y-4">
                     {albums[eventName].map((photo) => (
-                      <LazyImage
+                      <div
                         key={photo.id}
-                        src={`/api/gallery/files/${photo.filename}?v=2`}
-                        alt={photo.event || ''}
-                        aria-label={`Abrir foto de ${photo.event || 'galería'}`}
+                        className="group relative rounded-xl overflow-hidden border border-dark-ash
+                          hover:border-fire-orange/30 transition-all break-inside-avoid cursor-pointer"
                         onClick={() => setLightbox(photo)}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' || e.key === ' ') {
@@ -179,7 +146,22 @@ export default function Gallery() {
                             setLightbox(photo)
                           }
                         }}
-                      />
+                        tabIndex={0}
+                        role="button"
+                        aria-label={`Abrir foto de ${photo.event || 'galería'}`}
+                      >
+                        <ImageWithLoader
+                          src={thumbUrl(photo.filename)}
+                          alt={photo.alt || ''}
+                          className="w-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-dark-obsidian/80 via-transparent to-transparent
+                          opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
+                          <span className="font-heading text-lg tracking-wider text-fire-gold">
+                            {photo.event || ''}
+                          </span>
+                        </div>
+                      </div>
                     ))}
                   </div>
                 )}
@@ -195,8 +177,8 @@ export default function Gallery() {
           <button type="button" className="absolute top-4 right-4 text-silver hover:text-white z-10" onClick={() => setLightbox(null)}>
             <X className="w-8 h-8" />
           </button>
-          <img
-            src={`/api/gallery/files/${lightbox.filename}?v=2`}
+          <ImageWithLoader
+            src={webUrl(lightbox.filename)}
             alt={lightbox.alt || ''}
             className="max-w-full max-h-[90vh] rounded-xl object-contain"
             onClick={(e) => e.stopPropagation()}

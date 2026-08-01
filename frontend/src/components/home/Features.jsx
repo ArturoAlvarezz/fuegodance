@@ -4,10 +4,10 @@ import { Link } from 'react-router-dom'
 const features = [
   { icon: MapPin, title: '3 Sedes activas', desc: 'Curicó, Talca y Rancagua con horarios y direcciones claras.', link: '/contacto', color: 'text-fire-red' },
   { icon: CalendarDays, title: 'Eventos & Sociales', desc: 'Social Latino, workshops, clases especiales y comunidad en movimiento.', link: '#instagram', color: 'text-fire-gold' },
-  { icon: Play, title: 'Figuras en Video', desc: 'Espacio listo para agregar figuras de Salsa Casino con su video respectivo.', link: '/figuras', color: 'text-fire-orange' },
   { icon: Camera, title: 'Galería viva', desc: 'Fotos de clases, sociales y momentos memorables de la comunidad.', link: '/galeria', color: 'text-fire-gold' },
   { icon: Instagram, title: '@fuegodance.cl', desc: 'Contenido visual inspirado en el perfil oficial de Instagram.', link: '#instagram', color: 'text-fire-red' },
   { icon: Flame, title: 'Primera clase gratis', desc: 'CTA directo a WhatsApp para reservar sin fricción.', link: '/contacto', color: 'text-fire-orange' },
+  { icon: Play, title: 'Figuras en Video', desc: 'Espacio listo para agregar figuras de Salsa Casino con su video respectivo.', link: '/figuras', color: 'text-fire-orange' },
 ]
 
 export default function Features() {

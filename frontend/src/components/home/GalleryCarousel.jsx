@@ -1,6 +1,16 @@
 import { useState, useEffect, useCallback } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
+// Convierte nombre de archivo a URLs de imágenes optimizadas
+const thumbUrl = (filename) => {
+  const stem = filename.replace(/\.[^.]+$/, '')
+  return `/images/thumbnails/${stem}.webp`
+}
+const webUrl = (filename) => {
+  const stem = filename.replace(/\.[^.]+$/, '')
+  return `/images/web/${stem}.webp`
+}
+
 export default function GalleryCarousel() {
   const [photos, setPhotos] = useState([])
   const [current, setCurrent] = useState(0)
@@ -100,11 +110,12 @@ export default function GalleryCarousel() {
           <div className="hidden lg:block absolute left-0 xl:left-8 top-1/2 -translate-y-1/2 w-32 xl:w-40 opacity-30 scale-90 blur-[2px] transition-all duration-700 pointer-events-none z-0">
             <div className="rounded-2xl overflow-hidden border border-white/5">
               <img
-                src={`/api/gallery/files/${getNeighbor(-2).filename}?v=2`}
+                src={thumbUrl(getNeighbor(-2).filename)}
                 alt=""
                 loading="lazy"
                 className="w-full h-48 object-cover"
                 draggable={false}
+                loading="lazy"
               />
             </div>
           </div>
@@ -113,11 +124,12 @@ export default function GalleryCarousel() {
           <div className="hidden lg:block absolute right-0 xl:right-8 top-1/2 -translate-y-1/2 w-32 xl:w-40 opacity-30 scale-90 blur-[2px] transition-all duration-700 pointer-events-none z-0">
             <div className="rounded-2xl overflow-hidden border border-white/5">
               <img
-                src={`/api/gallery/files/${getNeighbor(2).filename}?v=2`}
+                src={thumbUrl(getNeighbor(2).filename)}
                 alt=""
                 loading="lazy"
                 className="w-full h-48 object-cover"
                 draggable={false}
+                loading="lazy"
               />
             </div>
           </div>
@@ -135,10 +147,11 @@ export default function GalleryCarousel() {
               {/* Frame */}
               <div className="relative overflow-hidden rounded-2xl border border-fire-gold/30 shadow-[0_0_60px_rgba(247,127,0,.2)] max-h-full">
                 <img
-                  src={`/api/gallery/files/${photo.filename}?v=2`}
+                  src={webUrl(photo.filename)}
                   alt={photo.alt || 'Fuego Dance'}
                   className="max-w-full max-h-[420px] sm:max-h-[520px] object-contain"
                   draggable={false}
+                  loading="lazy"
                 />
 
                 {/* Gradient overlay at bottom */}

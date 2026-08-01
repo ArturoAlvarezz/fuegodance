@@ -127,7 +127,7 @@ export default function UpcomingEvent() {
                 className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-gradient-to-r from-fire-red to-fire-orange text-white font-heading text-lg tracking-wider hover:scale-[1.02] hover:shadow-[0_0_30px_rgba(230,57,70,.4)] transition-all"
               >
                 <MessageCircle className="w-5 h-5" />
-                Reservar por WhatsApp
+                Compra tu entrada aquí
               </a>
               <a
                 href={event.instagramUrl}
