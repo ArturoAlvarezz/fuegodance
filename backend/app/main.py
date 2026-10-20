@@ -1,11 +1,13 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from contextlib import asynccontextmanager
-from .database import engine, Base
+from sqlalchemy import inspect, text
+from .database import engine, Base, SessionLocal
 from .models import Figure, GalleryPhoto, Video, ContactMessage, AdminUser, User
 from .auth import create_default_admin
+from .services.gallery_images import backfill_dimensions
 from .routers import figures, gallery, instagram, contact
 from .routers.videos import router as videos_router
 from .routers.admin import router as admin_router
@@ -21,9 +23,17 @@ FRONTEND_DIST = Path("/app/frontend/dist")
 async def lifespan(app: FastAPI):
     # Startup: create tables + default admin
     Base.metadata.create_all(bind=engine)
+    # create_all no agrega columnas a tablas existentes
+    gallery_columns = {c["name"] for c in inspect(engine).get_columns("gallery_photos")}
+    with engine.begin() as conn:
+        for column in ("width", "height"):
+            if column not in gallery_columns:
+                conn.execute(text(f"ALTER TABLE gallery_photos ADD COLUMN {column} INTEGER"))
     for d in ["/app/uploads/gallery", "/app/uploads/videos", "/app/uploads/thumbnails", "/app/uploads/instagram", "/app/data"]:
         os.makedirs(d, exist_ok=True)
     create_default_admin()
+    with SessionLocal() as db:
+        backfill_dimensions(db)
     yield
 
 
@@ -77,7 +87,13 @@ def serve_frontend(path: str):
     index = FRONTEND_DIST / "index.html"
     requested = (FRONTEND_DIST / path).resolve()
     if requested.is_file() and requested.is_relative_to(FRONTEND_DIST.resolve()):
+        # Los archivos de assets/ llevan hash en el nombre: pueden cachearse para siempre
+        if path.startswith("assets/"):
+            return FileResponse(requested, headers={"Cache-Control": "public, max-age=31536000, immutable"})
         return FileResponse(requested)
+    if path.startswith("assets/"):
+        raise HTTPException(status_code=404)
     if index.exists():
-        return FileResponse(index)
+        # index.html siempre se revalida para que cada despliegue llegue de inmediato
+        return FileResponse(index, headers={"Cache-Control": "no-cache"})
     return {"message": "🔥 Fuego Dance API", "docs": "/docs"}

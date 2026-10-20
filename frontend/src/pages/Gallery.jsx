@@ -42,6 +42,53 @@ function ImageWithLoader({ src, alt, onClick, onKeyDown, tabIndex, role, 'aria-l
   )
 }
 
+// Proporción de la foto; si aún no se conoce, se asume horizontal 3:2
+const aspectRatio = (photo) => (photo.width && photo.height ? photo.width / photo.height : 1.5)
+
+// Celda de la grilla: reserva su espacio exacto antes de cargar, así la página no salta
+function GalleryTile({ photo, onOpen }) {
+  const [loaded, setLoaded] = useState(false)
+  const ratio = aspectRatio(photo)
+
+  return (
+    <div
+      className="group relative rounded-xl overflow-hidden border border-dark-ash bg-dark-ash/50
+        hover:border-fire-orange/30 transition-colors cursor-pointer"
+      style={{ flexGrow: ratio, flexBasis: `calc(var(--row-h) * ${ratio})` }}
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onOpen()
+        }
+      }}
+      tabIndex={0}
+      role="button"
+      aria-label={`Abrir foto de ${photo.event || 'galería'}`}
+    >
+      <div style={{ paddingTop: `${100 / ratio}%` }} className={loaded ? '' : 'animate-pulse'} />
+      <img
+        src={thumbUrl(photo.filename)}
+        alt={photo.alt || ''}
+        width={photo.width || undefined}
+        height={photo.height || undefined}
+        loading="lazy"
+        decoding="async"
+        onLoad={() => setLoaded(true)}
+        onError={() => setLoaded(true)}
+        className={`absolute inset-0 w-full h-full object-cover group-hover:scale-105
+          transition-[transform,opacity] duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-dark-obsidian/80 via-transparent to-transparent
+        opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
+        <span className="font-heading text-lg tracking-wider text-fire-gold">
+          {photo.event || ''}
+        </span>
+      </div>
+    </div>
+  )
+}
+
 export default function Gallery() {
   const [photos, setPhotos] = useState([])
   const [loading, setLoading] = useState(true)
@@ -84,7 +131,7 @@ export default function Gallery() {
     <>
     <Helmet>
       <title>Galería de Fotos — Sociales y Eventos | Fuego Dance</title>
-      <meta name="description" content="Galería de fotos de Fuego Dance: sociales, eventos y momentos de nuestras clases de Salsa Casino en Curicó, Talca y Rancagua." />
+      <meta name="description" content="Galería de fotos de Fuego Dance: sociales, eventos y momentos de nuestras clases de Salsa Casino en Curicó y Talca." />
       <link rel="canonical" href="https://fuegodance.cl/galeria" />
       <meta property="og:title" content="Galería de Fotos — Fuego Dance" />
       <meta property="og:description" content="Sociales, eventos y momentos de nuestras clases de Salsa Casino." />
@@ -133,35 +180,12 @@ export default function Gallery() {
                 </button>
 
                 {!collapsed[eventName] && (
-                  <div className="columns-1 sm:columns-2 lg:columns-3 gap-4 space-y-4">
+                  // Grilla justificada: filas de igual altura que se llenan de izquierda a derecha.
+                  // El elemento ::after absorbe el espacio sobrante para que la última fila no se estire.
+                  <div className="flex flex-wrap gap-2 sm:gap-3 [--row-h:100px] sm:[--row-h:170px] lg:[--row-h:200px]
+                    after:content-[''] after:grow-[999]">
                     {albums[eventName].map((photo) => (
-                      <div
-                        key={photo.id}
-                        className="group relative rounded-xl overflow-hidden border border-dark-ash
-                          hover:border-fire-orange/30 transition-all break-inside-avoid cursor-pointer"
-                        onClick={() => setLightbox(photo)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault()
-                            setLightbox(photo)
-                          }
-                        }}
-                        tabIndex={0}
-                        role="button"
-                        aria-label={`Abrir foto de ${photo.event || 'galería'}`}
-                      >
-                        <ImageWithLoader
-                          src={thumbUrl(photo.filename)}
-                          alt={photo.alt || ''}
-                          className="w-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-dark-obsidian/80 via-transparent to-transparent
-                          opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
-                          <span className="font-heading text-lg tracking-wider text-fire-gold">
-                            {photo.event || ''}
-                          </span>
-                        </div>
-                      </div>
+                      <GalleryTile key={photo.id} photo={photo} onOpen={() => setLightbox(photo)} />
                     ))}
                   </div>
                 )}

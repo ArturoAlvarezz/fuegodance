@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 from ..database import get_db
 from ..models import Figure, GalleryPhoto, Video, ContactMessage, AdminUser, User
 from ..auth import get_current_admin, verify_password, hash_password, create_admin_token
+from ..services.gallery_images import generate_previews, remove_previews
 
 router = APIRouter(prefix="", tags=["admin"])
 
@@ -237,7 +238,12 @@ async def admin_upload_gallery(
     db: Session = Depends(get_db),
 ):
     unique_name = save_upload(file, UPLOAD_GALLERY, IMAGE_EXTENSIONS)
-    photo = GalleryPhoto(filename=unique_name, alt=alt or file.filename, event=event)
+    try:
+        width, height = generate_previews(unique_name)
+    except Exception:
+        remove_file(UPLOAD_GALLERY, unique_name)
+        raise HTTPException(status_code=400, detail="No se pudo procesar la imagen")
+    photo = GalleryPhoto(filename=unique_name, alt=alt or file.filename, event=event, width=width, height=height)
     db.add(photo)
     db.commit()
     db.refresh(photo)
@@ -269,6 +275,7 @@ def admin_delete_gallery(photo_id: int, db: Session = Depends(get_db)):
     if not photo:
         raise HTTPException(status_code=404, detail="Foto no encontrada")
     remove_file(UPLOAD_GALLERY, photo.filename)
+    remove_previews(photo.filename)
     db.delete(photo)
     db.commit()
     return {"status": "deleted", "id": photo_id}

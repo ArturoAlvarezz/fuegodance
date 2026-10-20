@@ -26,6 +26,8 @@ class GalleryPhoto(Base):
     filename = Column(String(500), nullable=False)
     alt = Column(String(200), nullable=True)
     event = Column(String(200), nullable=True)
+    width = Column(Integer, nullable=True)
+    height = Column(Integer, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 

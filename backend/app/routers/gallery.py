@@ -18,6 +18,8 @@ class GalleryPhotoOut(BaseModel):
     filename: str
     alt: Optional[str] = None
     event: Optional[str] = None
+    width: Optional[int] = None
+    height: Optional[int] = None
 
     class Config:
         from_attributes = True
