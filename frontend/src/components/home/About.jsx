@@ -16,7 +16,7 @@ export default function About() {
             <div className="inline-flex items-center gap-2 text-fire-gold uppercase tracking-[.32em] text-xs mb-4"><Sparkles className="w-4 h-4" /> Escuela de baile</div>
             <h2 className="font-heading text-5xl sm:text-7xl tracking-wider mb-6">NO ES SOLO BAILAR. ES <span className="text-fire-gradient">PERTENECER</span></h2>
             <p className="text-silver/90 text-lg leading-relaxed mb-6">Fuego Dance nace como una comunidad salsera donde cada clase mezcla técnica, alegría y conexión. No importa si nunca has bailado: aquí comienzas desde cero y avanzas a tu ritmo.</p>
-            <p className="text-muted leading-relaxed">La identidad del Instagram lo deja claro: clases para todos, energía social, ciudades activas y una familia que no para de crecer en Curicó, Talca y Rancagua.</p>
+            <p className="text-muted leading-relaxed">La identidad del Instagram lo deja claro: clases para todos, energía social, ciudades activas y una familia que no para de crecer en Curicó y Talca.</p>
           </div>
 
           <div className="grid sm:grid-cols-3 lg:grid-cols-1 gap-5">

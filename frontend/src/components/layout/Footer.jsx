@@ -16,7 +16,7 @@ export default function Footer() {
                 <span className="text-xs text-muted">Baila, conecta y disfruta</span>
               </div>
             </div>
-            <p className="text-muted text-sm leading-relaxed">Salsa Casino para todos en Curicó, Talca y Rancagua. Primera clase gratis, comunidad real y pista encendida.</p>
+            <p className="text-muted text-sm leading-relaxed">Salsa Casino para todos en Curicó y Talca. Primera clase gratis, comunidad real y pista encendida.</p>
           </div>
 
           <div>

@@ -1,6 +1,6 @@
 # 🔥 Fuego Dance
 
-Sitio web y plataforma de gestión para **Fuego Dance**, academia de Salsa Casino con presencia en Curicó, Talca y Rancagua.
+Sitio web y plataforma de gestión para **Fuego Dance**, academia de Salsa Casino con presencia en Curicó y Talca.
 
 La aplicación muestra la información de la academia, publicaciones de Instagram, galería de fotos, figuras de baile y formularios de contacto. El backend también incluye autenticación y herramientas administrativas para gestionar el contenido.
 

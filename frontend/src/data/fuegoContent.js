@@ -24,7 +24,7 @@ export const LOCATIONS = [
   {
     city: 'Talca',
     title: 'Fuego Talca',
-    days: 'Miércoles y Viernes',
+    days: 'Lunes y Miércoles',
     address: '45 Oriente #1022, Las Rastras, Talca',
     mapaUrl: 'https://www.google.com/maps/search/?api=1&query=45+Oriente+1022+Las+Rastras+Talca',
     levels: [
@@ -34,25 +34,6 @@ export const LOCATIONS = [
     ],
     vibe: 'Energía social, risas, aprendizaje y familia salsera.',
     accent: 'from-fire-orange via-fire-gold to-fire-red',
-  },
-  {
-    city: 'Rancagua',
-    title: 'Fuego Rancagua',
-    days: 'Lunes y Sábado',
-    address: 'Estado 140, Centro de Rancagua',
-    mapaUrl: 'https://www.google.com/maps/search/?api=1&query=Estado+140+Centro+de+Rancagua',
-    levels: [
-      {
-        label: 'Principiantes',
-        time: 'Lunes 20:00 a 21:00 · Sábado 18:00 a 19:00',
-      },
-      {
-        label: 'Intermedio',
-        time: 'Lunes 21:00 a 22:00 · Sábado 19:00 a 20:00',
-      },
-    ],
-    vibe: 'Primera clase gratis, buena vibra y pista encendida.',
-    accent: 'from-fire-gold via-fire-red to-fire-orange',
   },
 ]
 
@@ -79,7 +60,7 @@ export const INSTAGRAM_POSTS = [
     id: 'DWokCQkAGFR',
     tag: 'Talca',
     title: 'Vive la Salsa Casino',
-    caption: 'Miércoles y viernes. Clases para todos los niveles en Las Rastras.',
+    caption: 'Lunes y miércoles. Clases para todos los niveles en Las Rastras.',
     meta: '45 Oriente #1022',
     link: 'https://www.instagram.com/fuegodance.cl/p/DWokCQkAGFR/',
     image: 'https://scontent-scl3-1.cdninstagram.com/v/t51.82787-15/658822875_18186245890370480_386556664697906478_n.jpg?stp=dst-jpg_e35_p640x640_sh2.08_tt6&_nc_ht=scontent-scl3-1.cdninstagram.com&_nc_cat=108&_nc_oc=Q6cZ2gEt6cn3ligKed-8p22tUaWMa12qb0jbS3ehv6EZm7AimhlK2ZOvbOIpKZOQL3V7mNk&_nc_ohc=m_QR4KRp38kQ7kNvwGPZoPn&_nc_gid=w6OofcCZSBhLW8cz9Bfkjg&edm=AOQ1c0wBAAAA&ccb=7-5&oh=00_Af6JIbRA7dtb6aftx3MyywqvHTvqr1fMGhU4w3Y1L3lHuA&oe=6A117653&_nc_sid=8b3546',
@@ -101,15 +82,6 @@ export const INSTAGRAM_POSTS = [
     meta: 'Jueves 2 de julio · 20:00 a 21:00',
     link: 'https://www.instagram.com/fuegodance.cl/p/DZ8cvnGPKN5/',
     image: '/api/gallery/files/ccd4c3301605dcef1eb31aa7c8e70ada.jpg',
-  },
-  {
-    id: 'DZ8cMlfPlH6',
-    tag: 'Rancagua',
-    title: 'Aprende Salsa Casino en Rancagua',
-    caption: 'RANCAGUA, ES TU MOMENTO DE APRENDER SALSA CASINO🔥 ¡PRIMERA CLASE GRATIS! Sábado 4 de julio, 18:00 a 19:00 hrs, Estado 140, Rancagua. Mensualidad $25.000 / 8 clases. Inscríbete al WhatsApp +56 9 5907 1043.',
-    meta: 'Sábado 4 de julio · 18:00 a 19:00',
-    link: 'https://www.instagram.com/fuegodance.cl/p/DZ8cMlfPlH6/',
-    image: '/api/gallery/files/99a0440b97761f04ed6502cb79672e67.jpg',
   },
   {
     id: 'DZ8c6efPEpa',

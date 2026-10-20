@@ -8,10 +8,10 @@ export default function Locations() {
       <div className="relative max-w-7xl mx-auto">
         <div className="text-center mb-14">
           <h2 className="font-heading text-5xl sm:text-7xl tracking-wider">SEDES <span className="text-fire-gradient">ENCENDIDAS</span></h2>
-          <p className="text-silver/90 max-w-2xl mx-auto mt-4">Curicó, Talca y Rancagua: horarios, direcciones y niveles actualizados desde el perfil oficial.</p>
+          <p className="text-silver/90 max-w-2xl mx-auto mt-4">Curicó y Talca: horarios, direcciones y niveles actualizados desde el perfil oficial.</p>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-6 mb-16">
+        <div className="grid lg:grid-cols-2 gap-6 mb-16">
           {LOCATIONS.map((loc, i) => (
             <article key={loc.city} className="group relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.045] p-6 backdrop-blur-xl fire-glow-hover animate-fade-up" style={{ animationDelay: `${i * 90}ms` }}>
               <div className={`absolute -right-16 -top-16 h-44 w-44 rounded-full bg-gradient-to-br ${loc.accent} opacity-20 blur-2xl group-hover:opacity-40 transition-opacity`} />

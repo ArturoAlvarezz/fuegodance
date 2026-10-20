@@ -7,10 +7,10 @@ export default function Contact() {
     <>
     <Helmet>
       <title>Contacto — Reserva tu Clase Gratis | Fuego Dance</title>
-      <meta name="description" content="Contacta Fuego Dance: WhatsApp, Instagram y sedes en Curicó, Talca y Rancagua. Reserva tu primera clase de Salsa Casino gratis." />
+      <meta name="description" content="Contacta Fuego Dance: WhatsApp, Instagram y sedes en Curicó y Talca. Reserva tu primera clase de Salsa Casino gratis." />
       <link rel="canonical" href="https://fuegodance.cl/contacto" />
       <meta property="og:title" content="Contacto — Fuego Dance" />
-      <meta property="og:description" content="Reserva tu primera clase de Salsa Casino gratis en Curicó, Talca o Rancagua." />
+      <meta property="og:description" content="Reserva tu primera clase de Salsa Casino gratis en Curicó o Talca." />
       <meta property="og:url" content="https://fuegodance.cl/contacto" />
     </Helmet>
     <section className="relative pt-28 pb-20 px-4 bg-dark-obsidian min-h-screen overflow-hidden">
@@ -29,7 +29,7 @@ export default function Contact() {
             <div><h3 className="font-heading text-3xl tracking-wider">Instagram</h3><p className="text-silver">{CONTACT.instagram}</p></div>
           </a>
 
-          <div className="grid sm:grid-cols-3 gap-4 pt-3">
+          <div className="grid sm:grid-cols-2 gap-4 pt-3">
             {LOCATIONS.map((loc) => (
               <div key={loc.city} className="rounded-[1.5rem] border border-white/10 bg-white/[0.045] p-5 backdrop-blur-xl">
                 <MapPin className="w-6 h-6 text-fire-red mb-3" />

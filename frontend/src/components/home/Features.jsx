@@ -2,7 +2,7 @@ import { Camera, Play, Instagram, MapPin, CalendarDays, Flame } from 'lucide-rea
 import { Link } from 'react-router-dom'
 
 const features = [
-  { icon: MapPin, title: '3 Sedes activas', desc: 'Curicó, Talca y Rancagua con horarios y direcciones claras.', link: '/contacto', color: 'text-fire-red' },
+  { icon: MapPin, title: '2 Sedes activas', desc: 'Curicó y Talca con horarios y direcciones claras.', link: '/contacto', color: 'text-fire-red' },
   { icon: CalendarDays, title: 'Eventos & Sociales', desc: 'Social Latino, workshops, clases especiales y comunidad en movimiento.', link: '#instagram', color: 'text-fire-gold' },
   { icon: Camera, title: 'Galería viva', desc: 'Fotos de clases, sociales y momentos memorables de la comunidad.', link: '/galeria', color: 'text-fire-gold' },
   { icon: Instagram, title: '@fuegodance.cl', desc: 'Contenido visual inspirado en el perfil oficial de Instagram.', link: '#instagram', color: 'text-fire-red' },

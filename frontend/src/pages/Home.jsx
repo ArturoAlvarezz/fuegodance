@@ -9,11 +9,11 @@ export default function Home() {
   return (
     <>
       <Helmet>
-        <title>Fuego Dance — Academia de Salsa Casino en Curicó, Talca y Rancagua</title>
-        <meta name="description" content="Academia de Salsa Casino en Curicó, Talca y Rancagua. Clases para todos los niveles, figuras en video, sociales y comunidad. ¡Primera clase gratis!" />
+        <title>Fuego Dance — Academia de Salsa Casino en Curicó y Talca</title>
+        <meta name="description" content="Academia de Salsa Casino en Curicó y Talca. Clases para todos los niveles, figuras en video, sociales y comunidad. ¡Primera clase gratis!" />
         <link rel="canonical" href="https://fuegodance.cl/" />
         <meta property="og:title" content="Fuego Dance — Academia de Salsa Casino" />
-        <meta property="og:description" content="Clases de Salsa Casino en Curicó, Talca y Rancagua. Figuras en video, sociales y comunidad." />
+        <meta property="og:description" content="Clases de Salsa Casino en Curicó y Talca. Figuras en video, sociales y comunidad." />
         <meta property="og:url" content="https://fuegodance.cl/" />
       </Helmet>
       <Hero />

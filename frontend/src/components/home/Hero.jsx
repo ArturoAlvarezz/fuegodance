@@ -16,7 +16,7 @@ export default function Hero() {
         <div className="text-center lg:text-left animate-fade-up">
           <div className="inline-flex items-center gap-2 rounded-full border border-fire-gold/30 bg-white/5 px-4 py-2 mb-6 backdrop-blur-xl">
             <Sparkles className="w-4 h-4 text-fire-gold" />
-            <span className="text-xs uppercase tracking-[0.35em] text-fire-gold">Salsa Casino · Curicó · Talca · Rancagua</span>
+            <span className="text-xs uppercase tracking-[0.35em] text-fire-gold">Salsa Casino · Curicó · Talca</span>
           </div>
 
           <h1 className="font-heading text-7xl sm:text-8xl md:text-[9.5rem] leading-[.82] tracking-wider mb-6">
