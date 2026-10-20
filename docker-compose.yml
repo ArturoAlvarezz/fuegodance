@@ -1,41 +1,28 @@
-version: "3.8"
-
 services:
-  backend:
+  app:
     build:
-      context: ./backend
+      context: .
       dockerfile: Dockerfile
-    container_name: fuego-dance-api
+    image: arturoalvarez/fuego-dance:latest
+    container_name: fuego-dance-app
     restart: unless-stopped
     environment:
-      - DATABASE_URL=sqlite:///./db/fuego_dance.db
-      - INSTAGRAM_ACCESS_TOKEN=${INSTAGRAM_ACCESS_TOKEN:-}
+      DATABASE_URL: sqlite:///./db/fuego_dance.db
+      INSTAGRAM_ACCESS_TOKEN: ${INSTAGRAM_ACCESS_TOKEN:-}
+      INSTAGRAM_USER_ID: ${INSTAGRAM_USER_ID:-}
+      INSTAGRAM_GRAPH_API_VERSION: ${INSTAGRAM_GRAPH_API_VERSION:-v23.0}
+      INSTAGRAM_GRAPH_API_HOST: ${INSTAGRAM_GRAPH_API_HOST:-graph.instagram.com}
     volumes:
-      - fuego-uploads:/app/uploads
+      - /home/artulita/fuegodance:/app/uploads
       - fuego-db:/app/db
-    networks:
-      - fuego-net
-
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: fuego-dance-web
-    restart: unless-stopped
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      - /mnt/sda/fuegodance:/var/www/gallery:ro
     ports:
-      - "8083:80"
-    depends_on:
-      - backend
-    networks:
-      - fuego-net
+      - "8083:8000"
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 96M
 
 volumes:
-  fuego-uploads:
   fuego-db:
-
-networks:
-  fuego-net:
-    driver: bridge

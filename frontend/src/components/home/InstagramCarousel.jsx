@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { ChevronLeft, ChevronRight, Instagram, ExternalLink } from 'lucide-react'
 import logoImg from '../../assets/logo.jpg'
 
@@ -6,13 +6,17 @@ export default function InstagramCarousel() {
   const [posts, setPosts] = useState([])
   const [current, setCurrent] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [direction, setDirection] = useState('next')
+  const touchStartX = useRef(null)
+  const videoRef = useRef(null)
 
   const fetchFeed = useCallback(() => {
     fetch('/api/instagram/feed')
       .then(r => r.json())
       .then(data => {
         if (Array.isArray(data) && data.length > 0) {
-          setPosts(data.slice(0, 3))
+          setPosts(data)
+          setCurrent(0)
         }
         setLoading(false)
       })
@@ -27,24 +31,47 @@ export default function InstagramCarousel() {
   }, [fetchFeed])
 
   const next = useCallback(() => {
+    setDirection('next')
     setCurrent(prev => (prev + 1) % posts.length)
   }, [posts.length])
 
   const prev = useCallback(() => {
+    setDirection('prev')
     setCurrent(prev => (prev - 1 + posts.length) % posts.length)
   }, [posts.length])
 
-  // Auto-advance every 5 seconds
+  const handleTouchStart = event => {
+    touchStartX.current = event.touches[0]?.clientX ?? null
+  }
+
+  const handleTouchEnd = event => {
+    if (touchStartX.current === null) return
+    const delta = event.changedTouches[0]?.clientX - touchStartX.current
+    touchStartX.current = null
+    if (Math.abs(delta) < 45 || posts.length < 2) return
+    if (delta < 0) next()
+    else prev()
+  }
+
+  const post = posts[current]
+  const isVideo = post?.media_type === 'VIDEO'
+
+  // Images advance every 10 seconds. Videos advance from onEnded instead.
   useEffect(() => {
-    if (posts.length < 2) return
-    const timer = setInterval(next, 5000)
+    if (posts.length < 2 || isVideo) return
+    const timer = setInterval(next, 10000)
     return () => clearInterval(timer)
-  }, [posts.length, next])
+  }, [posts.length, next, isVideo, current])
+
+  useEffect(() => {
+    if (isVideo && videoRef.current) {
+      videoRef.current.currentTime = 0
+      videoRef.current.play().catch(() => {})
+    }
+  }, [current, isVideo])
 
   if (loading) return null
   if (posts.length === 0) return null
-
-  const post = posts[current]
 
   return (
     <section id="instagram-carousel" className="relative py-24 px-4 bg-dark-obsidian overflow-hidden">
@@ -78,7 +105,11 @@ export default function InstagramCarousel() {
         </div>
 
         {/* Carousel */}
-        <div className="relative flex items-center justify-center select-none">
+        <div
+          className="relative flex items-center justify-center select-none"
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+        >
           {/* Nav arrows */}
           <button
             type="button"
@@ -104,8 +135,8 @@ export default function InstagramCarousel() {
 
             {/* Card with Instagram gradient border */}
             <div
-              key={current}
-              className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-fire-red via-fire-orange to-fire-gold p-[3px] shadow-[0_0_60px_rgba(230,57,70,.25)]"
+              key={`${post.id}-${current}`}
+              className={`relative rounded-2xl overflow-hidden bg-gradient-to-br from-fire-red via-fire-orange to-fire-gold p-[3px] shadow-[0_0_60px_rgba(230,57,70,.25)] ${direction === 'next' ? 'instagram-slide-next' : 'instagram-slide-prev'}`}
             >
               <div className="bg-dark-charcoal rounded-[calc(1rem-3px)] overflow-hidden">
                 {/* Instagram header bar */}
@@ -132,25 +163,37 @@ export default function InstagramCarousel() {
                   </a>
                 </div>
 
-                {/* Post image */}
-                <a
-                  href={post.permalink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block relative overflow-hidden"
-                >
-                  <img
-                    src={post.media_url}
-                    alt="Publicación de Fuego Dance"
-                    className="w-full aspect-square object-cover hover:scale-105 transition-transform duration-500"
-                    draggable={false}
-                    loading="lazy"
-                  />
+                {/* Post image or video */}
+                <div className="block relative aspect-square overflow-hidden bg-black/35">
+                  {isVideo ? (
+                    <video
+                      ref={videoRef}
+                      src={post.media_url}
+                      className="w-full h-full object-contain"
+                      autoPlay
+                      muted
+                      playsInline
+                      controls
+                      preload="metadata"
+                      onEnded={next}
+                      aria-label="Video de Fuego Dance"
+                    />
+                  ) : (
+                    <a href={post.permalink} target="_blank" rel="noopener noreferrer" className="block w-full h-full">
+                      <img
+                        src={post.media_url}
+                        alt="Publicación de Fuego Dance"
+                        className="w-full h-full object-contain"
+                        draggable={false}
+                        loading="eager"
+                      />
+                    </a>
+                  )}
                   {/* Gradient overlay on hover */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-dark-obsidian/60 via-transparent to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
+                  <a href={post.permalink} target="_blank" rel="noopener noreferrer" className="absolute inset-0 bg-gradient-to-t from-dark-obsidian/60 via-transparent to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
                     <span className="text-white text-sm font-heading tracking-wider">VER EN INSTAGRAM →</span>
-                  </div>
-                </a>
+                  </a>
+                </div>
 
                 {/* Instagram footer bar */}
                 <div className="flex items-center justify-between px-4 py-3 border-t border-white/5">

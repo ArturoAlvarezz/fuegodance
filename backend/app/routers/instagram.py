@@ -1,215 +1,214 @@
-import os
 import json
-import time
-import httpx
+import os
 import re
-import subprocess
-from fastapi import APIRouter, HTTPException
-from fastapi.responses import Response, FileResponse
+import time
 from datetime import datetime, timezone
+from urllib.parse import quote
+
+import httpx
+from fastapi import APIRouter, HTTPException
+from fastapi.responses import FileResponse, Response
 
 router = APIRouter()
 
 CACHE_DIR = "/app/uploads/instagram"
 CACHE_FILE = "/app/data/instagram_cache.json"
-SCRAPE_SCRIPT = "/app/scripts/scrape_instagram.py"
+MANIFEST_FILE = os.path.join(CACHE_DIR, "feed.json")
+CACHE_MAX_AGE = 60 * 60  # 1 hora
+GRAPH_API_VERSION = os.getenv("INSTAGRAM_GRAPH_API_VERSION", "v23.0")
+GRAPH_API_HOST = os.getenv("INSTAGRAM_GRAPH_API_HOST", "graph.instagram.com")
 
 os.makedirs(CACHE_DIR, exist_ok=True)
 
-CACHE_MAX_AGE = 6 * 60 * 60  # 6 hours in seconds
 
-
-def read_cache() -> list[dict] | None:
-    """Read cached feed if it exists and is fresh enough."""
+def read_cache() -> tuple[list[dict] | None, list[dict] | None]:
+    """Return (fresh_feed, stale_feed) so stale data can be shown safely."""
     if not os.path.exists(CACHE_FILE):
-        return None
+        return None, None
     try:
-        with open(CACHE_FILE, "r") as f:
-            data = json.load(f)
-        cached_at = data.get("cached_at", 0)
-        if time.time() - cached_at < CACHE_MAX_AGE:
-            return data.get("feed", [])
-    except (json.JSONDecodeError, KeyError, TypeError):
-        pass
-    return None
+        with open(CACHE_FILE, "r", encoding="utf-8") as file:
+            data = json.load(file)
+        feed = data.get("feed")
+        if not isinstance(feed, list):
+            return None, None
+        if time.time() - data.get("cached_at", 0) < CACHE_MAX_AGE:
+            return feed, feed
+        return None, feed
+    except (OSError, json.JSONDecodeError, TypeError, AttributeError):
+        return None, None
 
 
 def write_cache(feed: list[dict]) -> None:
-    """Write feed to cache file with timestamp."""
-    data = {
-        "cached_at": time.time(),
-        "feed": feed,
-    }
+    """Persist only a verified feed, never the hardcoded fallback."""
     os.makedirs(os.path.dirname(CACHE_FILE), exist_ok=True)
-    with open(CACHE_FILE, "w") as f:
-        json.dump(data, f, indent=2)
+    with open(CACHE_FILE, "w", encoding="utf-8") as file:
+        json.dump({"cached_at": time.time(), "feed": feed}, file, indent=2)
 
 
-async def download_and_cache_image(post_id: str, image_url: str) -> str | None:
-    """Download image from Instagram CDN and cache locally."""
+async def download_and_cache_image(post_id: str, image_url: str | None) -> str | None:
+    """Download a Graph API/CDN image so the frontend does not depend on expiring URLs."""
+    if not image_url:
+        return None
     cache_path = os.path.join(CACHE_DIR, f"{post_id}.jpg")
-
-    # Serve from cache if exists
     if os.path.exists(cache_path):
         return f"/api/instagram/media/{post_id}"
-
-    # Download and cache
     try:
         async with httpx.AsyncClient() as client:
-            resp = await client.get(image_url, follow_redirects=True, timeout=30)
-            if resp.status_code == 200:
-                with open(cache_path, "wb") as f:
-                    f.write(resp.content)
+            response = await client.get(image_url, follow_redirects=True, timeout=30)
+            if response.status_code == 200 and response.content:
+                with open(cache_path, "wb") as file:
+                    file.write(response.content)
                 return f"/api/instagram/media/{post_id}"
-    except Exception:
+    except (httpx.HTTPError, OSError):
         pass
     return None
 
 
+def normalize_post(post: dict, media_url: str | None = None) -> dict:
+    return {
+        "id": post.get("id"),
+        "permalink": post.get("permalink") or f"https://www.instagram.com/p/{post.get('code', '')}/",
+        "media_url": media_url or post.get("media_url"),
+        "timestamp": post.get("timestamp"),
+        "caption": post.get("caption"),
+        "media_type": post.get("media_type"),
+    }
+
+
 def get_fallback_feed() -> list[dict]:
-    """Return a basic fallback if scraping fails completely."""
-    # These are the known posts from the profile
-    known_posts = [
-        {"code": "DZ8cvnGPKN5", "url": "https://www.instagram.com/p/DZ8cvnGPKN5/"},
-        {"code": "DZ8cMlfPlH6", "url": "https://www.instagram.com/p/DZ8cMlfPlH6/"},
-        {"code": "DZ8c6efPEpa", "url": "https://www.instagram.com/p/DZ8c6efPEpa/"},
-        {"code": "DaEE0i_P9Kd", "url": "https://www.instagram.com/p/DaEE0i_P9Kd/"},
-    ]
-    return [
-        {
-            "id": p["code"],
-            "permalink": p["url"],
-            "media_url": f"/api/instagram/media/{p['code']}",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-        }
-        for p in known_posts
-    ]
+    """Return the locally imported, verified Instagram links when available."""
+    try:
+        with open(MANIFEST_FILE, "r", encoding="utf-8") as file:
+            feed = json.load(file)
+        if isinstance(feed, list):
+            return [post for post in feed if isinstance(post, dict) and post.get("id")]
+    except (OSError, json.JSONDecodeError, TypeError):
+        pass
+    return []
+
+
+async def fetch_graph_feed() -> list[dict]:
+    """Fetch current media through Instagram Graph API."""
+    token = os.getenv("INSTAGRAM_ACCESS_TOKEN")
+    user_id = os.getenv("INSTAGRAM_USER_ID")
+    if not token or not user_id:
+        return []
+
+    fields = "id,caption,media_type,media_url,permalink,timestamp,thumbnail_url"
+    url = f"https://{GRAPH_API_HOST}/{GRAPH_API_VERSION}/{quote(user_id, safe='')}/media"
+    params = {"fields": fields, "limit": 12, "access_token": token}
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, params=params, timeout=20)
+            response.raise_for_status()
+            payload = response.json()
+            posts = payload.get("data", [])
+            if not isinstance(posts, list):
+                return []
+
+            feed = []
+            for post in posts:
+                source_url = post.get("thumbnail_url") or post.get("media_url")
+                cached_url = await download_and_cache_image(post.get("id", ""), source_url)
+                if cached_url:
+                    feed.append(normalize_post(post, cached_url))
+            return [post for post in feed if post.get("id")]
+    except (httpx.HTTPError, ValueError, KeyError, TypeError):
+        return []
+
+
+async def scrape_instagram() -> list[dict]:
+    """Read the public profile JSON endpoint when Graph API credentials are unavailable."""
+    headers = {
+        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/121.0 Safari/537.36",
+        "x-ig-app-id": "936619743392459",
+        "Accept": "application/json,text/plain,*/*",
+    }
+    url = "https://www.instagram.com/api/v1/users/web_profile_info/?username=fuegodance.cl"
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, headers=headers, follow_redirects=True, timeout=20)
+            response.raise_for_status()
+            user = response.json().get("data", {}).get("user", {})
+            edges = user.get("edge_owner_to_timeline_media", {}).get("edges", [])
+            if not edges:
+                return []
+
+            feed = []
+            for edge in edges[:12]:
+                node = edge.get("node", {})
+                post_id = node.get("shortcode") or node.get("id")
+                if not post_id:
+                    continue
+                captions = node.get("edge_media_to_caption", {}).get("edges", [])
+                caption = captions[0].get("node", {}).get("text") if captions else None
+                cached_url = await download_and_cache_image(post_id, node.get("display_url"))
+                if cached_url:
+                    feed.append({
+                        "id": post_id,
+                        "permalink": f"https://www.instagram.com/p/{post_id}/",
+                        "media_url": cached_url,
+                        "timestamp": datetime.fromtimestamp(
+                            node.get("taken_at_timestamp", time.time()), timezone.utc
+                        ).isoformat(),
+                        "caption": caption,
+                        "media_type": "VIDEO" if node.get("is_video") else "IMAGE",
+                    })
+            return feed
+    except (httpx.HTTPError, ValueError, KeyError, TypeError, OSError):
+        return []
+
+
+async def refresh_feed_data() -> list[dict]:
+    """Try official API first, then scraping; cache only real results."""
+    feed = await fetch_graph_feed()
+    source = "Graph API"
+    if not feed:
+        feed = await scrape_instagram()
+        source = "scraping"
+    if feed:
+        write_cache(feed)
+        print(f"Instagram feed actualizado mediante {source}: {len(feed)} publicaciones")
+    return feed
 
 
 @router.get("/feed")
-def get_feed():
-    """Get Instagram feed from cache. Returns cached data if fresh."""
-    feed = read_cache()
-    if feed is not None:
-        return feed
-    # Return fallback and trigger background refresh
-    return get_fallback_feed()
+async def get_feed():
+    """Return fresh cache; refresh when expired and preserve stale data only as a fallback."""
+    fresh, stale = read_cache()
+    if fresh is not None:
+        return fresh
+    refreshed = await refresh_feed_data()
+    if refreshed:
+        return refreshed
+    return stale or get_fallback_feed()
 
 
 @router.post("/refresh")
 async def refresh_feed():
-    """Force refresh the Instagram feed by scraping the profile."""
-    feed = await scrape_instagram()
+    feed = await refresh_feed_data()
     if feed:
-        write_cache(feed)
         return {"status": "refreshed", "items": len(feed)}
-    return {"status": "error", "message": "Could not scrape Instagram"}
-
-
-async def scrape_instagram() -> list[dict]:
-    """Scrape Instagram profile page for post data."""
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    }
-
-    try:
-        async with httpx.AsyncClient() as client:
-            # Get the profile page
-            resp = await client.get(
-                "https://www.instagram.com/fuegodance.cl/",
-                headers=headers,
-                follow_redirects=True,
-                timeout=15,
-            )
-            if resp.status_code != 200:
-                return get_fallback_feed()
-
-            # Extract post shortcodes from the page
-            text = resp.text
-            codes = list(set(re.findall(r'\"shortcode\":\"([A-Za-z0-9_-]+)\"', text)))
-
-            if not codes:
-                return get_fallback_feed()
-
-            # For each post, fetch the embed page to get the image
-            feed = []
-            for code in codes[:10]:
-                try:
-                    embed_resp = await client.get(
-                        f"https://www.instagram.com/p/{code}/embed/",
-                        headers=headers,
-                        follow_redirects=True,
-                        timeout=15,
-                    )
-                    if embed_resp.status_code == 200:
-                        # Extract image URL from embed page
-                        img_match = re.findall(
-                            r'src="(https://[^"]*cdninstagram[^"]*\.jpg[^"]*)"',
-                            embed_resp.text,
-                        )
-                        # The last image is usually the post image (not profile pic)
-                        img_url = img_match[-1] if img_match else None
-
-                        media_url = None
-                        if img_url:
-                            media_url = await download_and_cache_image(code, img_url)
-
-                        feed.append({
-                            "id": code,
-                            "permalink": f"https://www.instagram.com/p/{code}/",
-                            "media_url": media_url or f"/api/instagram/media/{code}",
-                            "timestamp": datetime.now(timezone.utc).isoformat(),
-                        })
-                except Exception:
-                    feed.append({
-                        "id": code,
-                        "permalink": f"https://www.instagram.com/p/{code}/",
-                        "media_url": f"/api/instagram/media/{code}",
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
-                    })
-
-            return feed if feed else get_fallback_feed()
-
-    except Exception:
-        return get_fallback_feed()
+    return {"status": "error", "message": "No se pudo obtener una publicación real de Instagram"}
 
 
 @router.get("/media/{post_id}")
 async def proxy_instagram_media(post_id: str):
-    """Proxy Instagram media to avoid CORS issues. Caches images locally."""
-    cache_path = os.path.join(CACHE_DIR, f"{post_id}.jpg")
-
-    # Serve from cache if exists
-    if os.path.exists(cache_path):
-        return FileResponse(cache_path, media_type="image/jpeg")
-
-    # Try to fetch from embed page
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-    }
-
-    try:
-        async with httpx.AsyncClient() as client:
-            embed_resp = await client.get(
-                f"https://www.instagram.com/p/{post_id}/embed/",
-                headers=headers,
-                follow_redirects=True,
-                timeout=15,
+    """Serve a previously cached Instagram image or video."""
+    # The manifest keeps a stable extensionless URL; resolve the local file safely.
+    safe_id = re.sub(r"[^A-Za-z0-9_-]", "", post_id)
+    candidates = (
+        (f"{safe_id}.mp4", "video/mp4"),
+        (f"{safe_id}.jpg", "image/jpeg"),
+        (f"{safe_id}.jpeg", "image/jpeg"),
+        (f"{safe_id}.png", "image/png"),
+    )
+    for filename, media_type in candidates:
+        cache_path = os.path.join(CACHE_DIR, filename)
+        if os.path.exists(cache_path):
+            return FileResponse(
+                cache_path,
+                media_type=media_type,
+                headers={"Cache-Control": "no-cache, must-revalidate"},
             )
-            if embed_resp.status_code == 200:
-                img_match = re.findall(
-                    r'src="(https://[^"]*cdninstagram[^"]*\.jpg[^"]*)"',
-                    embed_resp.text,
-                )
-                if img_match:
-                    img_url = img_match[-1]
-                    img_resp = await client.get(img_url, follow_redirects=True, timeout=30)
-                    if img_resp.status_code == 200:
-                        with open(cache_path, "wb") as f:
-                            f.write(img_resp.content)
-                        return Response(content=img_resp.content, media_type="image/jpeg")
-    except Exception:
-        pass
-
     raise HTTPException(status_code=404, detail="Media not found")

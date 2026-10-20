@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from contextlib import asynccontextmanager
 from .database import engine, Base
 from .models import Figure, GalleryPhoto, Video, ContactMessage, AdminUser, User
@@ -11,6 +12,9 @@ from .routers.admin import router as admin_router
 from .routers.users import router as users_router
 
 import os
+from pathlib import Path
+
+FRONTEND_DIST = Path("/app/frontend/dist")
 
 
 @asynccontextmanager
@@ -58,12 +62,22 @@ app.include_router(users_router)
 # Admin routers
 app.include_router(admin_router, prefix="/api/admin", tags=["admin"])
 
+# Optimized gallery files are served directly by the integrated application.
+app.mount("/images", StaticFiles(directory="/app/uploads"), name="images")
+
 
 @app.get("/api/health")
 def health_check():
     return {"status": "🔥 Fuego Dance API is running"}
 
 
-@app.get("/")
-def root():
+@app.get("/{path:path}")
+def serve_frontend(path: str):
+    """Serve the compiled React SPA and fall back to index.html for client routes."""
+    index = FRONTEND_DIST / "index.html"
+    requested = (FRONTEND_DIST / path).resolve()
+    if requested.is_file() and requested.is_relative_to(FRONTEND_DIST.resolve()):
+        return FileResponse(requested)
+    if index.exists():
+        return FileResponse(index)
     return {"message": "🔥 Fuego Dance API", "docs": "/docs"}
