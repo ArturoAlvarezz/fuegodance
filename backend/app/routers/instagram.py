@@ -2,7 +2,6 @@ import json
 import os
 import re
 import time
-from datetime import datetime, timezone
 from urllib.parse import quote
 
 import httpx
@@ -12,13 +11,17 @@ from fastapi.responses import FileResponse, Response
 router = APIRouter()
 
 CACHE_DIR = "/app/uploads/instagram"
-CACHE_FILE = "/app/data/instagram_cache.json"
+# Dentro del volumen montado para que la caché sobreviva a los redespliegues
+CACHE_FILE = os.path.join(CACHE_DIR, "graph_cache.json")
 MANIFEST_FILE = os.path.join(CACHE_DIR, "feed.json")
 CACHE_MAX_AGE = 60 * 60  # 1 hora
 GRAPH_API_VERSION = os.getenv("INSTAGRAM_GRAPH_API_VERSION", "v23.0")
 GRAPH_API_HOST = os.getenv("INSTAGRAM_GRAPH_API_HOST", "graph.instagram.com")
 
 os.makedirs(CACHE_DIR, exist_ok=True)
+
+# Momento del último intento fallido: evita consultar Instagram en cada visita
+_last_failed_refresh = 0.0
 
 
 def read_cache() -> tuple[list[dict] | None, list[dict] | None]:
@@ -117,58 +120,19 @@ async def fetch_graph_feed() -> list[dict]:
         return []
 
 
-async def scrape_instagram() -> list[dict]:
-    """Read the public profile JSON endpoint when Graph API credentials are unavailable."""
-    headers = {
-        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/121.0 Safari/537.36",
-        "x-ig-app-id": "936619743392459",
-        "Accept": "application/json,text/plain,*/*",
-    }
-    url = "https://www.instagram.com/api/v1/users/web_profile_info/?username=fuegodance.cl"
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url, headers=headers, follow_redirects=True, timeout=20)
-            response.raise_for_status()
-            user = response.json().get("data", {}).get("user", {})
-            edges = user.get("edge_owner_to_timeline_media", {}).get("edges", [])
-            if not edges:
-                return []
-
-            feed = []
-            for edge in edges[:12]:
-                node = edge.get("node", {})
-                post_id = node.get("shortcode") or node.get("id")
-                if not post_id:
-                    continue
-                captions = node.get("edge_media_to_caption", {}).get("edges", [])
-                caption = captions[0].get("node", {}).get("text") if captions else None
-                cached_url = await download_and_cache_image(post_id, node.get("display_url"))
-                if cached_url:
-                    feed.append({
-                        "id": post_id,
-                        "permalink": f"https://www.instagram.com/p/{post_id}/",
-                        "media_url": cached_url,
-                        "timestamp": datetime.fromtimestamp(
-                            node.get("taken_at_timestamp", time.time()), timezone.utc
-                        ).isoformat(),
-                        "caption": caption,
-                        "media_type": "VIDEO" if node.get("is_video") else "IMAGE",
-                    })
-            return feed
-    except (httpx.HTTPError, ValueError, KeyError, TypeError, OSError):
-        return []
-
-
 async def refresh_feed_data() -> list[dict]:
-    """Try official API first, then scraping; cache only real results."""
+    """Consulta la Graph API (requiere token); cachea solo resultados reales.
+
+    El endpoint público del perfil exige sesión desde 2026 (responde 401), así que
+    sin token el feed sale de feed.json, generado por scripts/import_instagram_posts.py.
+    """
+    global _last_failed_refresh
     feed = await fetch_graph_feed()
-    source = "Graph API"
-    if not feed:
-        feed = await scrape_instagram()
-        source = "scraping"
     if feed:
         write_cache(feed)
-        print(f"Instagram feed actualizado mediante {source}: {len(feed)} publicaciones")
+        print(f"Instagram feed actualizado mediante Graph API: {len(feed)} publicaciones")
+    else:
+        _last_failed_refresh = time.time()
     return feed
 
 
@@ -178,6 +142,8 @@ async def get_feed():
     fresh, stale = read_cache()
     if fresh is not None:
         return fresh
+    if time.time() - _last_failed_refresh < CACHE_MAX_AGE:
+        return stale or get_fallback_feed()
     refreshed = await refresh_feed_data()
     if refreshed:
         return refreshed
@@ -198,6 +164,7 @@ async def proxy_instagram_media(post_id: str):
     # The manifest keeps a stable extensionless URL; resolve the local file safely.
     safe_id = re.sub(r"[^A-Za-z0-9_-]", "", post_id)
     candidates = (
+        (f"{safe_id}.webp", "image/webp"),
         (f"{safe_id}.mp4", "video/mp4"),
         (f"{safe_id}.jpg", "image/jpeg"),
         (f"{safe_id}.jpeg", "image/jpeg"),
