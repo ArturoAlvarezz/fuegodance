@@ -1,4 +1,4 @@
-name: Build and Push Docker Images
+name: Build and Push Docker Image
 
 on:
   push:
@@ -25,20 +25,17 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_TOKEN }}
 
-      - name: Build and push Backend
-        uses: docker/build-push-action@v5
+      # Imagen única (SPA + API) definida en el Dockerfile de la raíz.
+      # Solo arm64: se ejecuta en la Raspberry Pi, donde Watchtower la actualiza.
+      - name: Build and push
+        uses: docker/build-push-action@v6
         with:
-          context: ./backend
-          file: ./backend/Dockerfile
-          platforms: linux/amd64,linux/arm64
+          context: .
+          file: ./Dockerfile
+          platforms: linux/arm64
           push: true
-          tags: arturoalvarez/fuego-dance-api:latest
-
-      - name: Build and push Frontend
-        uses: docker/build-push-action@v5
-        with:
-          context: ./frontend
-          file: ./frontend/Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: arturoalvarez/fuego-dance-web:latest
+          tags: |
+            arturoalvarez/fuego-dance:latest
+            arturoalvarez/fuego-dance:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
