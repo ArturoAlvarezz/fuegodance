@@ -38,11 +38,7 @@ function App() {
             <Figures />
           </ProtectedRoute>
         } />
-        <Route path="playlist" element={
-          <ProtectedRoute>
-            <Playlist />
-          </ProtectedRoute>
-        } />
+        <Route path="playlist" element={<Playlist />} />
         <Route path="contacto" element={<Contact />} />
       </Route>
 

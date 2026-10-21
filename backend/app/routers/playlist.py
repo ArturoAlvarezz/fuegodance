@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from ..auth import get_authenticated_user
+from ..auth import get_authenticated_user, get_optional_user
 from ..database import get_db
 from ..models import PlaylistSong, SongVote, User
 
@@ -55,19 +55,28 @@ def fetch_video_info(youtube_id: str) -> dict:
     return {"title": data.get("title") or "Sin título", "channel": data.get("author_name")}
 
 
-def serialize_song(song: PlaylistSong, vote_count: int, voted: bool, current_user: dict) -> dict:
-    is_admin = current_user["role"] == "admin"
+def public_name(full_name: str) -> str:
+    """«Ana Pérez Soto» -> «Ana P.»: los visitantes sin sesión no ven nombres completos."""
+    parts = full_name.split()
+    if len(parts) < 2:
+        return full_name
+    return f"{parts[0]} {parts[1][0]}."
+
+
+def serialize_song(song: PlaylistSong, vote_count: int, voted: bool, current_user: Optional[dict]) -> dict:
+    is_admin = bool(current_user) and current_user["role"] == "admin"
+    user_id = current_user["user_id"] if current_user else None
     return {
         "id": song.id,
         "youtube_id": song.youtube_id,
         "title": song.title,
         "channel": song.channel,
         "style": song.style,
-        "added_by_name": song.added_by_name,
+        "added_by_name": song.added_by_name if current_user else public_name(song.added_by_name),
         "created_at": song.created_at.isoformat() if song.created_at else None,
         "votes": vote_count,
         "voted": voted,
-        "can_delete": is_admin or (song.added_by_id is not None and song.added_by_id == current_user["user_id"]),
+        "can_delete": is_admin or (song.added_by_id is not None and song.added_by_id == user_id),
     }
 
 
@@ -75,7 +84,8 @@ def serialize_song(song: PlaylistSong, vote_count: int, voted: bool, current_use
 def list_songs(
     style: Optional[str] = Query(None),
     order: str = Query("votes"),
-    current_user: dict = Depends(get_authenticated_user),
+    limit: Optional[int] = Query(None, ge=1, le=50),
+    current_user: Optional[dict] = Depends(get_optional_user),
     db: Session = Depends(get_db),
 ):
     vote_count = func.count(SongVote.id).label("vote_count")
@@ -91,9 +101,11 @@ def list_songs(
     else:
         query = query.order_by(vote_count.desc(), PlaylistSong.created_at.desc())
 
+    if limit:
+        query = query.limit(limit)
     rows = query.all()
     my_votes = set()
-    if current_user["user_id"]:
+    if current_user and current_user["user_id"]:
         my_votes = {
             v.song_id for v in db.query(SongVote.song_id).filter(SongVote.user_id == current_user["user_id"])
         }

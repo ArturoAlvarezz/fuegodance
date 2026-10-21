@@ -12,6 +12,7 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 1440  # 24 hours
 
 security = HTTPBearer()
+optional_security = HTTPBearer(auto_error=False)
 
 
 def hash_password(password: str) -> str:
@@ -87,6 +88,16 @@ async def get_authenticated_user(credentials: HTTPAuthorizationCredentials = Dep
         "user_id": payload.get("user_id"),
         "full_name": payload.get("full_name"),
     }
+
+
+async def get_optional_user(credentials: HTTPAuthorizationCredentials | None = Depends(optional_security)):
+    """Like get_authenticated_user, but returns None for anonymous visitors or invalid tokens."""
+    if credentials is None:
+        return None
+    try:
+        return await get_authenticated_user(credentials)
+    except HTTPException:
+        return None
 
 
 # Keep backward compatibility — existing code that imports get_current_user still works

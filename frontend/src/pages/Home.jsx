@@ -1,6 +1,7 @@
 import Hero from '../components/home/Hero'
 import About from '../components/home/About'
 import InstagramCarousel from '../components/home/InstagramCarousel'
+import PlaylistPreview from '../components/home/PlaylistPreview'
 import Locations from '../components/home/Locations'
 import GalleryCarousel from '../components/home/GalleryCarousel'
 import { Helmet } from 'react-helmet-async'
@@ -19,6 +20,7 @@ export default function Home() {
       <Hero />
       <About />
       <InstagramCarousel />
+      <PlaylistPreview />
       <Locations />
       <GalleryCarousel />
     </>

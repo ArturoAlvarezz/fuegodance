@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
-import { Flame, Music2, Play, Pause, SkipForward, Shuffle, Plus, Trash2, Youtube, Loader2 } from 'lucide-react'
+import { Flame, Music2, Play, Pause, SkipForward, Shuffle, Plus, Trash2, Youtube, Loader2, LogIn } from 'lucide-react'
 import { useAuth, useUserApi } from '../hooks/useAuth'
 
 const styles = [
@@ -41,7 +42,8 @@ function loadYouTubeApi() {
 
 export default function Playlist() {
   const { userApiFetch } = useUserApi()
-  const { logoutUser } = useAuth()
+  const { isLoggedIn, logoutUser } = useAuth()
+  const location = useLocation()
   const [songs, setSongs] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -69,11 +71,6 @@ export default function Playlist() {
     if (activeStyle !== 'all') params.set('style', activeStyle)
     try {
       const r = await userApiFetch(`/api/playlist/?${params}`)
-      if (r.status === 401 || r.status === 403) {
-        logoutUser()
-        setError('unauthorized')
-        return
-      }
       if (!r.ok) throw new Error()
       const data = await r.json()
       setSongs(Array.isArray(data) ? data : [])
@@ -85,7 +82,7 @@ export default function Playlist() {
     }
   }
 
-  useEffect(() => { loadSongs() }, [activeStyle, order])
+  useEffect(() => { loadSongs() }, [activeStyle, order, isLoggedIn])
 
   useEffect(() => () => playerRef.current?.destroy(), [])
 
@@ -147,6 +144,10 @@ export default function Playlist() {
         body: JSON.stringify(form),
       })
       const data = await r.json().catch(() => ({}))
+      if (r.status === 401) {
+        logoutUser()
+        throw new Error('Tu sesión expiró. Vuelve a iniciar sesión para agregar canciones.')
+      }
       if (!r.ok) throw new Error(data.detail || 'No se pudo agregar la canción')
       setForm({ url: '', style: form.style })
       setFormMessage({ ok: true, text: `«${data.title}» agregada a la playlist 🔥` })
@@ -160,6 +161,10 @@ export default function Playlist() {
 
   const handleVote = async (song) => {
     const r = await userApiFetch(`/api/playlist/${song.id}/vote`, { method: 'POST' })
+    if (r.status === 401) {
+      logoutUser()
+      return
+    }
     if (!r.ok) return
     const data = await r.json()
     setSongs((prev) => prev.map((s) => (s.id === song.id ? { ...s, votes: data.votes, voted: data.voted } : s)))
@@ -179,8 +184,9 @@ export default function Playlist() {
   return (
     <>
     <Helmet>
-      <title>Playlist de la academia | Fuego Dance</title>
-      <meta name="robots" content="noindex" />
+      <title>Playlist Fuego — La música de la academia | Fuego Dance</title>
+      <meta name="description" content="La playlist de Salsa Casino, timba y bachata armada y votada por los alumnos de Fuego Dance." />
+      <link rel="canonical" href="https://fuegodance.cl/playlist" />
     </Helmet>
     <section className="relative pt-28 pb-24 px-4 bg-dark-obsidian min-h-screen overflow-hidden">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_10%,rgba(230,57,70,.18),transparent_28%),radial-gradient(circle_at_80%_20%,rgba(247,127,0,.12),transparent_34%)]" />
@@ -200,15 +206,7 @@ export default function Playlist() {
           </p>
         </div>
 
-        {error === 'unauthorized' ? (
-          <div className="relative max-w-3xl mx-auto rounded-[2rem] border border-fire-red/25 bg-white/[0.045] p-10 text-center backdrop-blur-xl">
-            <Flame className="w-16 h-16 text-fire-red mx-auto mb-5 animate-floaty" />
-            <h3 className="font-heading text-4xl tracking-wider mb-3">SESIÓN REQUERIDA</h3>
-            <p className="text-silver/85 leading-relaxed mb-6">Tu sesión expiró. Vuelve a iniciar sesión para ver la playlist.</p>
-            <a href="/login" className="inline-block px-7 py-3 rounded-2xl bg-fire-red text-white font-heading text-xl tracking-wider fire-glow hover:bg-fire-orange transition-all">INICIAR SESIÓN</a>
-          </div>
-        ) : (
-          <>
+        <>
             {/* Reproductor */}
             <div className="rounded-[1.75rem] border border-white/10 bg-dark-charcoal/90 overflow-hidden mb-8">
               <div className={`bg-black aspect-video sm:aspect-auto sm:h-[360px] [&>iframe]:w-full [&>iframe]:h-full ${currentId ? '' : 'hidden'}`}>
@@ -237,6 +235,14 @@ export default function Playlist() {
             </div>
 
             {/* Proponer canción */}
+            {!isLoggedIn ? (
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4 rounded-[1.75rem] border border-fire-red/25 bg-white/[0.04] p-4 sm:p-5 mb-8">
+                <p className="flex-1 text-silver">¿Eres alumno de Fuego Dance? Inicia sesión para proponer canciones y votar tus favoritas con 🔥.</p>
+                <Link to="/login" state={{ from: location.pathname }} className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-fire-red text-white font-heading text-lg tracking-wider hover:bg-fire-orange transition-all shrink-0">
+                  <LogIn className="w-5 h-5" /> Iniciar sesión
+                </Link>
+              </div>
+            ) : (
             <form onSubmit={handleAdd} className="rounded-[1.75rem] border border-white/10 bg-white/[0.04] p-4 sm:p-5 mb-8">
               <div className="flex flex-col sm:flex-row gap-3">
                 <input
@@ -262,6 +268,7 @@ export default function Playlist() {
                 <p className={`mt-3 text-sm ${formMessage.ok ? 'text-fire-gold' : 'text-fire-red'}`}>{formMessage.text}</p>
               )}
             </form>
+            )}
 
             {/* Filtros */}
             <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
@@ -311,10 +318,17 @@ export default function Playlist() {
                           <span className="truncate">por {song.added_by_name}</span>
                         </div>
                       </div>
+                      {isLoggedIn ? (
                       <button type="button" onClick={() => handleVote(song)} aria-pressed={song.voted} aria-label={song.voted ? 'Quitar voto' : 'Votar'} className={`shrink-0 flex flex-col items-center px-3 py-2 rounded-xl border transition-all ${song.voted ? 'bg-fire-red/20 border-fire-red/50 text-fire-gold' : 'bg-white/5 border-white/10 text-silver hover:text-fire-orange'}`}>
                         <Flame className={`w-5 h-5 ${song.voted ? 'fill-fire-orange' : ''}`} />
                         <span className="text-xs font-semibold">{song.votes}</span>
                       </button>
+                      ) : (
+                        <span title="Inicia sesión para votar" aria-label={`${song.votes} votos`} className="shrink-0 flex flex-col items-center px-3 py-2 rounded-xl border bg-white/5 border-white/10 text-silver">
+                          <Flame className="w-5 h-5" />
+                          <span className="text-xs font-semibold">{song.votes}</span>
+                        </span>
+                      )}
                       {song.can_delete && (
                         <button type="button" onClick={() => handleDelete(song)} aria-label="Quitar canción" className="shrink-0 p-2 rounded-xl text-muted hover:text-fire-red transition-colors">
                           <Trash2 className="w-4 h-4" />
@@ -325,8 +339,7 @@ export default function Playlist() {
                 })}
               </ol>
             )}
-          </>
-        )}
+        </>
       </div>
     </section>
     </>
