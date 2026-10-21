@@ -6,6 +6,7 @@ import Figures from './pages/Figures'
 import Contact from './pages/Contact'
 import UserLogin from './pages/UserLogin'
 import Playlist from './pages/Playlist'
+import NotFound from './pages/NotFound'
 import AdminLayout from './components/admin/AdminLayout'
 import AdminLogin from './pages/admin/Login'
 import Dashboard from './pages/admin/Dashboard'
@@ -40,6 +41,7 @@ function App() {
         } />
         <Route path="playlist" element={<Playlist />} />
         <Route path="contacto" element={<Contact />} />
+        <Route path="*" element={<NotFound />} />
       </Route>
 
       {/* User login (no layout) */}
@@ -55,6 +57,7 @@ function App() {
         <Route path="galeria" element={<GalleryAdmin />} />
         <Route path="usuarios" element={<UsersAdmin />} />
         <Route path="playlist" element={<PlaylistAdmin />} />
+        <Route path="*" element={<Navigate to="/admin" replace />} />
       </Route>
     </Routes>
   )

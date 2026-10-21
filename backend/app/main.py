@@ -17,6 +17,9 @@ import os
 from pathlib import Path
 
 FRONTEND_DIST = Path("/app/frontend/dist")
+# Rutas del SPA (frontend/src/App.jsx). El resto recibe index.html con estado 404
+# para que el SPA muestre su página de error y los buscadores no indexen la URL.
+SPA_ROUTES = {"", "galeria", "figuras", "playlist", "contacto", "login"}
 
 
 @asynccontextmanager
@@ -92,9 +95,11 @@ def serve_frontend(path: str):
         if path.startswith("assets/"):
             return FileResponse(requested, headers={"Cache-Control": "public, max-age=31536000, immutable"})
         return FileResponse(requested)
-    if path.startswith("assets/"):
+    if path.startswith(("assets/", "api/")):
         raise HTTPException(status_code=404)
     if index.exists():
+        route = path.strip("/")
+        known = route in SPA_ROUTES or route == "admin" or route.startswith("admin/")
         # index.html siempre se revalida para que cada despliegue llegue de inmediato
-        return FileResponse(index, headers={"Cache-Control": "no-cache"})
+        return FileResponse(index, status_code=200 if known else 404, headers={"Cache-Control": "no-cache"})
     return {"message": "🔥 Fuego Dance API", "docs": "/docs"}
