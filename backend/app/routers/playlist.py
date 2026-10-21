@@ -5,16 +5,18 @@ from typing import Optional
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
-from ..auth import get_authenticated_user, get_optional_user
+from ..auth import get_authenticated_user, get_optional_user, get_current_admin
 from ..database import get_db
 from ..models import PlaylistSong, SongVote, User
 
 router = APIRouter()
+admin_router = APIRouter(dependencies=[Depends(get_current_admin)])
 
 STYLES = ("salsa", "timba", "bachata", "son", "otro")
+STATUSES = ("pending", "approved", "hidden")
 MAX_SONGS_PER_DAY = 5
 YOUTUBE_ID_RE = re.compile(r"(?:v=|youtu\.be/|shorts/|embed/|live/)([A-Za-z0-9_-]{11})")
 
@@ -22,6 +24,12 @@ YOUTUBE_ID_RE = re.compile(r"(?:v=|youtu\.be/|shorts/|embed/|live/)([A-Za-z0-9_-
 class SongIn(BaseModel):
     url: str
     style: str
+
+
+class SongUpdate(BaseModel):
+    status: Optional[str] = None
+    title: Optional[str] = None
+    style: Optional[str] = None
 
 
 def extract_youtube_id(url: str) -> Optional[str]:
@@ -72,6 +80,7 @@ def serialize_song(song: PlaylistSong, vote_count: int, voted: bool, current_use
         "title": song.title,
         "channel": song.channel,
         "style": song.style,
+        "status": song.status,
         "added_by_name": song.added_by_name if current_user else public_name(song.added_by_name),
         "created_at": song.created_at.isoformat() if song.created_at else None,
         "votes": vote_count,
@@ -94,6 +103,12 @@ def list_songs(
         .outerjoin(SongVote, SongVote.song_id == PlaylistSong.id)
         .group_by(PlaylistSong.id)
     )
+    # Público: solo aprobadas. Cada alumno ve además sus propuestas pendientes u ocultas
+    user_id = current_user["user_id"] if current_user else None
+    if user_id:
+        query = query.filter(or_(PlaylistSong.status == "approved", PlaylistSong.added_by_id == user_id))
+    else:
+        query = query.filter(PlaylistSong.status == "approved")
     if style:
         query = query.filter(PlaylistSong.style == style)
     if order == "recent":
@@ -126,10 +141,12 @@ def add_song(
 
     existing = db.query(PlaylistSong).filter(PlaylistSong.youtube_id == youtube_id).first()
     if existing:
-        raise HTTPException(status_code=409, detail=f"«{existing.title}» ya está en la playlist (la propuso {existing.added_by_name})")
+        if existing.status == "approved":
+            raise HTTPException(status_code=409, detail=f"«{existing.title}» ya está en la playlist (la propuso {existing.added_by_name})")
+        raise HTTPException(status_code=409, detail="Esta canción ya fue propuesta y está en revisión")
 
     if current_user["role"] == "admin":
-        added_by_id, added_by_name = None, "Fuego Dance"
+        added_by_id, added_by_name, status = None, "Fuego Dance", "approved"
     else:
         user = db.query(User).filter(User.id == current_user["user_id"], User.is_active == 1).first()
         if not user:
@@ -142,7 +159,7 @@ def add_song(
         )
         if recent >= MAX_SONGS_PER_DAY:
             raise HTTPException(status_code=429, detail=f"Puedes proponer hasta {MAX_SONGS_PER_DAY} canciones al día")
-        added_by_id, added_by_name = user.id, user.full_name
+        added_by_id, added_by_name, status = user.id, user.full_name, "pending"
 
     info = fetch_video_info(youtube_id)
     song = PlaylistSong(
@@ -150,6 +167,7 @@ def add_song(
         title=info["title"][:300],
         channel=(info["channel"] or "")[:200] or None,
         style=data.style,
+        status=status,
         added_by_id=added_by_id,
         added_by_name=added_by_name,
     )
@@ -168,7 +186,7 @@ def toggle_vote(
     if not current_user["user_id"]:
         raise HTTPException(status_code=403, detail="Solo los alumnos pueden votar")
     song = db.query(PlaylistSong).filter(PlaylistSong.id == song_id).first()
-    if not song:
+    if not song or song.status != "approved":
         raise HTTPException(status_code=404, detail="Canción no encontrada")
 
     vote = db.query(SongVote).filter(SongVote.song_id == song_id, SongVote.user_id == current_user["user_id"]).first()
@@ -195,6 +213,72 @@ def delete_song(
     is_owner = song.added_by_id is not None and song.added_by_id == current_user["user_id"]
     if current_user["role"] != "admin" and not is_owner:
         raise HTTPException(status_code=403, detail="Solo puedes borrar tus propias canciones")
+    db.delete(song)
+    db.commit()
+    return {"status": "deleted"}
+
+
+# --- Moderación (solo admin) ---
+
+def song_with_votes(db: Session, song: PlaylistSong) -> dict:
+    votes = db.query(SongVote).filter(SongVote.song_id == song.id).count()
+    return serialize_song(song, votes, False, {"role": "admin", "user_id": None})
+
+
+@admin_router.get("/")
+def admin_list_songs(status: Optional[str] = Query(None), db: Session = Depends(get_db)):
+    vote_count = func.count(SongVote.id).label("vote_count")
+    query = (
+        db.query(PlaylistSong, vote_count)
+        .outerjoin(SongVote, SongVote.song_id == PlaylistSong.id)
+        .group_by(PlaylistSong.id)
+        .order_by(PlaylistSong.created_at.desc())
+    )
+    if status:
+        query = query.filter(PlaylistSong.status == status)
+    counts = dict(db.query(PlaylistSong.status, func.count(PlaylistSong.id)).group_by(PlaylistSong.status).all())
+    admin = {"role": "admin", "user_id": None}
+    return {
+        "songs": [serialize_song(song, count, False, admin) for song, count in query.all()],
+        "counts": {s: counts.get(s, 0) for s in STATUSES},
+    }
+
+
+@admin_router.patch("/{song_id}")
+def admin_update_song(song_id: int, data: SongUpdate, db: Session = Depends(get_db)):
+    song = db.query(PlaylistSong).filter(PlaylistSong.id == song_id).first()
+    if not song:
+        raise HTTPException(status_code=404, detail="Canción no encontrada")
+    if data.status is not None:
+        if data.status not in STATUSES:
+            raise HTTPException(status_code=400, detail="Estado no válido")
+        song.status = data.status
+    if data.style is not None:
+        if data.style not in STYLES:
+            raise HTTPException(status_code=400, detail="Estilo no válido")
+        song.style = data.style
+    if data.title is not None:
+        title = data.title.strip()
+        if not title:
+            raise HTTPException(status_code=400, detail="El título no puede quedar vacío")
+        song.title = title[:300]
+    db.commit()
+    db.refresh(song)
+    return song_with_votes(db, song)
+
+
+@admin_router.post("/approve-pending")
+def admin_approve_pending(db: Session = Depends(get_db)):
+    updated = db.query(PlaylistSong).filter(PlaylistSong.status == "pending").update({PlaylistSong.status: "approved"})
+    db.commit()
+    return {"approved": updated}
+
+
+@admin_router.delete("/{song_id}")
+def admin_delete_song(song_id: int, db: Session = Depends(get_db)):
+    song = db.query(PlaylistSong).filter(PlaylistSong.id == song_id).first()
+    if not song:
+        raise HTTPException(status_code=404, detail="Canción no encontrada")
     db.delete(song)
     db.commit()
     return {"status": "deleted"}

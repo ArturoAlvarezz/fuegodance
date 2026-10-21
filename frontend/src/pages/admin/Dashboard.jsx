@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useApi, useAuth } from '../../hooks/useAuth'
-import { Music, Camera } from 'lucide-react'
+import { Music, Camera, ListMusic } from 'lucide-react'
 
 export default function Dashboard() {
   const { apiFetch } = useApi()
   const { logout } = useAuth()
   const navigate = useNavigate()
-  const [stats, setStats] = useState({ figures: 0, photos: 0 })
+  const [stats, setStats] = useState({ figures: 0, photos: 0, pendingSongs: 0 })
   const [loading, setLoading] = useState(true)
 
   const handleAuthError = () => {
@@ -18,22 +18,24 @@ export default function Dashboard() {
   useEffect(() => {
     async function load() {
       try {
-        const [figRes, galRes] = await Promise.all([
+        const [figRes, galRes, playlistRes] = await Promise.all([
           apiFetch('/api/admin/figures/'),
           apiFetch('/api/admin/gallery/'),
+          apiFetch('/api/admin/playlist/?status=pending'),
         ])
-        for (const res of [figRes, galRes]) {
+        for (const res of [figRes, galRes, playlistRes]) {
           if (!res.ok) {
             if (res.status === 401) { handleAuthError(); return }
             throw new Error(`Error ${res.status}`)
           }
         }
-        const [figures, photos] = await Promise.all([
-          figRes.json(), galRes.json(),
+        const [figures, photos, playlist] = await Promise.all([
+          figRes.json(), galRes.json(), playlistRes.json(),
         ])
         setStats({
           figures: Array.isArray(figures) ? figures.length : 0,
           photos: Array.isArray(photos) ? photos.length : 0,
+          pendingSongs: playlist?.counts?.pending ?? 0,
         })
       } catch (e) {
         console.error(e)
@@ -47,6 +49,7 @@ export default function Dashboard() {
   const cards = [
     { label: 'Figuras', count: stats.figures, icon: Music, color: 'text-fire-red', bg: 'bg-fire-red/10', border: 'border-fire-red/30' },
     { label: 'Fotos', count: stats.photos, icon: Camera, color: 'text-fire-orange', bg: 'bg-fire-orange/10', border: 'border-fire-orange/30' },
+    { label: 'Canciones por aprobar', count: stats.pendingSongs, icon: ListMusic, color: 'text-fire-gold', bg: 'bg-fire-gold/10', border: 'border-fire-gold/30', to: '/admin/playlist' },
   ]
 
   return (
@@ -59,16 +62,19 @@ export default function Dashboard() {
       {loading ? (
         <p className="text-muted">Cargando estadísticas...</p>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          {cards.map((card) => (
-            <div key={card.label} className={`bg-dark-charcoal rounded-xl p-6 border ${card.border}`}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {cards.map((card) => {
+            const Card = card.to ? Link : 'div'
+            return (
+            <Card key={card.label} to={card.to} className={`block bg-dark-charcoal rounded-xl p-6 border ${card.border} ${card.to ? 'hover:bg-dark-ash/40 transition-all' : ''}`}>
               <div className={`w-12 h-12 ${card.bg} rounded-xl flex items-center justify-center mb-4`}>
                 <card.icon className={`w-6 h-6 ${card.color}`} />
               </div>
               <p className="text-muted text-sm mb-1">{card.label}</p>
               <p className={`font-heading text-4xl tracking-wider ${card.color}`}>{card.count}</p>
-            </div>
-          ))}
+            </Card>
+            )
+          })}
         </div>
       )}
     </div>

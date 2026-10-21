@@ -28,10 +28,15 @@ async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     # create_all no agrega columnas a tablas existentes
     gallery_columns = {c["name"] for c in inspect(engine).get_columns("gallery_photos")}
+    playlist_columns = {c["name"] for c in inspect(engine).get_columns("playlist_songs")}
     with engine.begin() as conn:
         for column in ("width", "height"):
             if column not in gallery_columns:
                 conn.execute(text(f"ALTER TABLE gallery_photos ADD COLUMN {column} INTEGER"))
+        # Las canciones que existían antes de la moderación ya estaban publicadas
+        if "status" not in playlist_columns:
+            conn.execute(text("ALTER TABLE playlist_songs ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'approved'"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_playlist_songs_status ON playlist_songs (status)"))
     for d in ["/app/uploads/gallery", "/app/uploads/videos", "/app/uploads/thumbnails", "/app/uploads/instagram", "/app/data"]:
         os.makedirs(d, exist_ok=True)
     create_default_admin()
@@ -75,6 +80,7 @@ app.include_router(users_router)
 
 # Admin routers
 app.include_router(admin_router, prefix="/api/admin", tags=["admin"])
+app.include_router(playlist.admin_router, prefix="/api/admin/playlist", tags=["admin"])
 
 # Optimized gallery files are served directly by the integrated application.
 app.mount("/images", StaticFiles(directory="/app/uploads"), name="images")

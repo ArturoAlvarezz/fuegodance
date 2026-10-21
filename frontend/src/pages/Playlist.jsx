@@ -150,7 +150,12 @@ export default function Playlist() {
       }
       if (!r.ok) throw new Error(data.detail || 'No se pudo agregar la canción')
       setForm({ url: '', style: form.style })
-      setFormMessage({ ok: true, text: `«${data.title}» agregada a la playlist 🔥` })
+      setFormMessage({
+        ok: true,
+        text: data.status === 'approved'
+          ? `«${data.title}» agregada a la playlist 🔥`
+          : `«${data.title}» quedó pendiente: aparecerá para todos cuando la academia la apruebe 🔥`,
+      })
       loadSongs()
     } catch (err) {
       setFormMessage({ ok: false, text: err.message })
@@ -318,7 +323,11 @@ export default function Playlist() {
                           <span className="truncate">por {song.added_by_name}</span>
                         </div>
                       </div>
-                      {isLoggedIn ? (
+                      {song.status !== 'approved' ? (
+                        <span className={`shrink-0 px-2 py-1 rounded-lg text-[11px] font-semibold uppercase tracking-wider ${song.status === 'pending' ? 'bg-fire-gold/15 text-fire-gold' : 'bg-white/10 text-muted'}`}>
+                          {song.status === 'pending' ? 'Pendiente' : 'Oculta'}
+                        </span>
+                      ) : isLoggedIn ? (
                       <button type="button" onClick={() => handleVote(song)} aria-pressed={song.voted} aria-label={song.voted ? 'Quitar voto' : 'Votar'} className={`shrink-0 flex flex-col items-center px-3 py-2 rounded-xl border transition-all ${song.voted ? 'bg-fire-red/20 border-fire-red/50 text-fire-gold' : 'bg-white/5 border-white/10 text-silver hover:text-fire-orange'}`}>
                         <Flame className={`w-5 h-5 ${song.voted ? 'fill-fire-orange' : ''}`} />
                         <span className="text-xs font-semibold">{song.votes}</span>

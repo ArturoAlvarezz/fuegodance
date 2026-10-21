@@ -82,6 +82,7 @@ class PlaylistSong(Base):
     title = Column(String(300), nullable=False)
     channel = Column(String(200), nullable=True)
     style = Column(String(50), nullable=False)  # salsa, timba, bachata, son, otro
+    status = Column(String(20), nullable=False, default="pending", index=True)  # pending, approved, hidden
     added_by_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     # Se guarda el nombre para que la canción conserve su autor si se borra el usuario
     added_by_name = Column(String(200), nullable=False)
