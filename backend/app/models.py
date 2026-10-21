@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 from .database import Base
@@ -72,3 +72,31 @@ class User(Base):
     hashed_password = Column(String(200), nullable=False)
     is_active = Column(Integer, default=1)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class PlaylistSong(Base):
+    __tablename__ = "playlist_songs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    youtube_id = Column(String(11), unique=True, nullable=False)
+    title = Column(String(300), nullable=False)
+    channel = Column(String(200), nullable=True)
+    style = Column(String(50), nullable=False)  # salsa, timba, bachata, son, otro
+    added_by_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    # Se guarda el nombre para que la canción conserve su autor si se borra el usuario
+    added_by_name = Column(String(200), nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    votes = relationship("SongVote", back_populates="song", cascade="all, delete-orphan")
+
+
+class SongVote(Base):
+    __tablename__ = "song_votes"
+    __table_args__ = (UniqueConstraint("song_id", "user_id"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    song_id = Column(Integer, ForeignKey("playlist_songs.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    song = relationship("PlaylistSong", back_populates="votes")

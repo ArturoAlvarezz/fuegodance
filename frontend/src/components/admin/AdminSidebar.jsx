@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
-import { LayoutDashboard, Music, Camera, Users, LogOut, ExternalLink } from 'lucide-react'
+import { LayoutDashboard, Music, Camera, Users, ListMusic, LogOut, ExternalLink } from 'lucide-react'
 import logo from '../../assets/logo.jpg'
 
 const links = [
@@ -8,6 +8,7 @@ const links = [
   { to: '/admin/figuras', icon: Music, label: 'Figuras', short: 'Figuras' },
   { to: '/admin/galeria', icon: Camera, label: 'Galería', short: 'Fotos' },
   { to: '/admin/usuarios', icon: Users, label: 'Usuarios', short: 'Usuarios' },
+  { to: '/admin/playlist', icon: ListMusic, label: 'Playlist', short: 'Playlist' },
 ]
 
 const NavLinks = ({ mobile = false, location }) => (

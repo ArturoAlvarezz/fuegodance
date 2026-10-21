@@ -25,6 +25,7 @@ export default function Footer() {
               <li><a href="/" className="hover:text-fire-orange transition-colors">Inicio</a></li>
               <li><a href="/galeria" className="hover:text-fire-orange transition-colors">Galería</a></li>
               <li><a href="/figuras" className="hover:text-fire-orange transition-colors">Figuras</a></li>
+              <li><a href="/playlist" className="hover:text-fire-orange transition-colors">Playlist</a></li>
               <li><a href="/contacto" className="hover:text-fire-orange transition-colors">Contacto</a></li>
             </ul>
           </div>

@@ -9,6 +9,7 @@ const navLinks = [
   { path: '/', label: 'Inicio' },
   { path: '/galeria', label: 'Galería' },
   { path: '/figuras', label: 'Figuras' },
+  { path: '/playlist', label: 'Playlist' },
   { path: '/contacto', label: 'Contacto' },
 ]
 
