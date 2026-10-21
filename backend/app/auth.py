@@ -3,8 +3,11 @@ from jose import JWTError, jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import bcrypt
+import os
+import secrets
 
-SECRET_KEY = "fuego-dance-secret-key-change-in-production"
+# Sin JWT_SECRET_KEY se usa una clave aleatoria: las sesiones se pierden al reiniciar, pero nadie puede falsificarlas
+SECRET_KEY = os.environ.get("JWT_SECRET_KEY") or secrets.token_urlsafe(48)
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 1440  # 24 hours
 
@@ -98,12 +101,16 @@ def create_default_admin():
     try:
         existing = db.query(AdminUser).filter(AdminUser.username == "admin").first()
         if not existing:
+            password = os.environ.get("ADMIN_INITIAL_PASSWORD") or secrets.token_urlsafe(12)
             admin = AdminUser(
                 username="admin",
-                hashed_password=hash_password("fuegodance2024"),
+                hashed_password=hash_password(password),
             )
             db.add(admin)
             db.commit()
-            print("✅ Default admin user created (admin / fuegodance2024)")
+            if os.environ.get("ADMIN_INITIAL_PASSWORD"):
+                print("✅ Default admin user created (admin / ADMIN_INITIAL_PASSWORD)")
+            else:
+                print(f"✅ Default admin user created (admin / {password})")
     finally:
         db.close()

@@ -8,6 +8,7 @@ services:
     restart: unless-stopped
     environment:
       DATABASE_URL: sqlite:///./db/fuego_dance.db
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Define JWT_SECRET_KEY en .env}
       INSTAGRAM_ACCESS_TOKEN: ${INSTAGRAM_ACCESS_TOKEN:-}
       INSTAGRAM_USER_ID: ${INSTAGRAM_USER_ID:-}
       INSTAGRAM_GRAPH_API_VERSION: ${INSTAGRAM_GRAPH_API_VERSION:-v23.0}
