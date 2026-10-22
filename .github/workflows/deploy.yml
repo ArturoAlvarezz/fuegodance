@@ -26,13 +26,13 @@ jobs:
           password: ${{ secrets.DOCKER_TOKEN }}
 
       # Imagen única (SPA + API) definida en el Dockerfile de la raíz.
-      # Solo arm64: se ejecuta en la Raspberry Pi, donde Watchtower la actualiza.
+      # amd64 para el servidor Proxmox (M70q) y arm64 para la Raspberry Pi; Watchtower la actualiza.
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
-          platforms: linux/arm64
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: |
             arturoalvarez/fuego-dance:latest
