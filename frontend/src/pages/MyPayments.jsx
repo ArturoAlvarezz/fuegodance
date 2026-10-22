@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
-import { Wallet, Upload, Copy, Check, Loader2, CalendarClock } from 'lucide-react'
+import { Wallet, Upload, Copy, Check, Loader2, CalendarClock, Landmark, Banknote } from 'lucide-react'
 import { useAuth, useUserApi } from '../hooks/useAuth'
 import { formatCLP, monthLabel, nextPeriod, paymentBadge } from '../utils/payments'
 
@@ -120,18 +120,27 @@ export default function MyPayments() {
               </div>
             </div>
 
-            {data.transfer_info && (
-              <div className="rounded-[1.5rem] border border-white/10 bg-dark-charcoal/90 p-5 mb-6">
+            <div className="grid sm:grid-cols-2 gap-4 mb-6">
+              <div className="rounded-[1.5rem] border border-white/10 bg-dark-charcoal/90 p-5">
                 <div className="flex items-center justify-between gap-3 mb-2">
-                  <p className="text-xs uppercase tracking-wider text-muted">Datos para transferir</p>
-                  <button type="button" onClick={copyTransferInfo} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 text-silver hover:text-fire-orange transition-all">
-                    {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />} {copied ? 'Copiado' : 'Copiar'}
-                  </button>
+                  <p className="text-xs uppercase tracking-wider text-muted flex items-center gap-1.5"><Landmark className="w-3.5 h-3.5" /> Transferencia</p>
+                  {data.transfer_info && (
+                    <button type="button" onClick={copyTransferInfo} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 text-silver hover:text-fire-orange transition-all">
+                      {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />} {copied ? 'Copiado' : 'Copiar'}
+                    </button>
+                  )}
                 </div>
-                <p className="text-white text-sm whitespace-pre-line">{data.transfer_info}</p>
+                {data.transfer_info
+                  ? <p className="text-white text-sm whitespace-pre-line">{data.transfer_info}</p>
+                  : <p className="text-silver text-sm">Pide los datos de transferencia en la academia.</p>}
                 <p className="text-muted text-xs mt-3">Después de transferir, sube el comprobante en el mes que corresponde.</p>
               </div>
-            )}
+              <div className="rounded-[1.5rem] border border-white/10 bg-dark-charcoal/90 p-5">
+                <p className="text-xs uppercase tracking-wider text-muted flex items-center gap-1.5 mb-2"><Banknote className="w-3.5 h-3.5" /> Efectivo</p>
+                <p className="text-white text-sm">Paga directamente en la academia, antes o después de clases.</p>
+                <p className="text-muted text-xs mt-3">Lo registramos nosotros y aparecerá aquí como pagado. No necesitas subir comprobante.</p>
+              </div>
+            </div>
 
             {message && (
               <p className={`mb-4 text-sm text-center ${message.ok ? 'text-green-400' : 'text-fire-red'}`}>{message.text}</p>
@@ -176,7 +185,6 @@ export default function MyPayments() {
               })}
             </ul>
 
-            <p className="text-muted text-xs text-center mt-8">¿Pagaste en efectivo? Lo registramos en la academia y aparecerá aquí como pagado.</p>
           </>
         )}
       </div>
