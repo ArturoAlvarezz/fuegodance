@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Menu, X, Instagram, LogIn, User, LogOut } from 'lucide-react'
+import { Menu, X, Instagram, LogIn, User, LogOut, Wallet } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import logo from '../../assets/logo.jpg'
 import { CONTACT } from '../../data/fuegoContent'
@@ -68,6 +68,14 @@ export default function Navbar() {
                         <p className="text-sm font-semibold text-white truncate">{user.full_name}</p>
                         <p className="text-xs text-muted">+56 {user.phone}</p>
                       </div>
+                      <Link
+                        to="/mis-pagos"
+                        onClick={() => setShowUserMenu(false)}
+                        className="flex items-center gap-2 w-full px-4 py-3 text-sm text-silver hover:text-fire-gold hover:bg-white/5 transition-all"
+                      >
+                        <Wallet className="w-4 h-4" />
+                        Mis pagos
+                      </Link>
                       <button
                         type="button"
                         onClick={handleLogout}
@@ -121,6 +129,14 @@ export default function Navbar() {
                     <p className="text-xs text-muted">+56 {user.phone}</p>
                   </div>
                 </div>
+                <Link
+                  to="/mis-pagos"
+                  onClick={() => setIsOpen(false)}
+                  className="flex items-center gap-2 w-full px-4 py-3 mb-2 bg-white/5 rounded-xl text-sm text-silver hover:text-fire-gold transition-all"
+                >
+                  <Wallet className="w-4 h-4" />
+                  Mis pagos
+                </Link>
                 <button
                   type="button"
                   onClick={() => { handleLogout(); setIsOpen(false) }}

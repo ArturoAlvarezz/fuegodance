@@ -6,6 +6,7 @@ import Figures from './pages/Figures'
 import Contact from './pages/Contact'
 import UserLogin from './pages/UserLogin'
 import Playlist from './pages/Playlist'
+import MyPayments from './pages/MyPayments'
 import NotFound from './pages/NotFound'
 import AdminLayout from './components/admin/AdminLayout'
 import AdminLogin from './pages/admin/Login'
@@ -14,6 +15,7 @@ import FiguresAdmin from './pages/admin/FiguresAdmin'
 import GalleryAdmin from './pages/admin/GalleryAdmin'
 import UsersAdmin from './pages/admin/UsersAdmin'
 import PlaylistAdmin from './pages/admin/PlaylistAdmin'
+import PaymentsAdmin from './pages/admin/PaymentsAdmin'
 import { useAuth } from './hooks/useAuth'
 
 function ProtectedRoute({ children }) {
@@ -40,6 +42,11 @@ function App() {
           </ProtectedRoute>
         } />
         <Route path="playlist" element={<Playlist />} />
+        <Route path="mis-pagos" element={
+          <ProtectedRoute>
+            <MyPayments />
+          </ProtectedRoute>
+        } />
         <Route path="contacto" element={<Contact />} />
         <Route path="*" element={<NotFound />} />
       </Route>
@@ -57,6 +64,7 @@ function App() {
         <Route path="galeria" element={<GalleryAdmin />} />
         <Route path="usuarios" element={<UsersAdmin />} />
         <Route path="playlist" element={<PlaylistAdmin />} />
+        <Route path="pagos" element={<PaymentsAdmin />} />
         <Route path="*" element={<Navigate to="/admin" replace />} />
       </Route>
     </Routes>

@@ -101,3 +101,30 @@ class SongVote(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     song = relationship("PlaylistSong", back_populates="votes")
+
+
+class Setting(Base):
+    """Valores configurables desde el admin (p. ej. el monto de la mensualidad)."""
+    __tablename__ = "settings"
+
+    key = Column(String(50), primary_key=True)
+    value = Column(Text, nullable=False)
+
+
+class Payment(Base):
+    """Mensualidad de un alumno. Los meses sin fila se consideran pendientes."""
+    __tablename__ = "payments"
+    __table_args__ = (UniqueConstraint("user_id", "period"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    period = Column(String(7), nullable=False, index=True)  # AAAA-MM
+    # Se guarda el monto del momento: cambiar la mensualidad no altera los meses ya registrados
+    amount = Column(Integer, nullable=False)
+    status = Column(String(20), nullable=False, default="pending")  # pending, review, paid, waived
+    method = Column(String(20), nullable=True)  # transferencia, efectivo, otro
+    receipt_filename = Column(String(200), nullable=True)
+    note = Column(Text, nullable=True)
+    paid_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))

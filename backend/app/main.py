@@ -5,10 +5,10 @@ from fastapi.responses import FileResponse
 from contextlib import asynccontextmanager
 from sqlalchemy import inspect, text
 from .database import engine, Base, SessionLocal
-from .models import Figure, GalleryPhoto, Video, ContactMessage, AdminUser, User, PlaylistSong, SongVote
+from .models import Figure, GalleryPhoto, Video, ContactMessage, AdminUser, User, PlaylistSong, SongVote, Setting, Payment
 from .auth import create_default_admin
 from .services.gallery_images import backfill_dimensions
-from .routers import figures, gallery, instagram, contact, playlist
+from .routers import figures, gallery, instagram, contact, playlist, payments
 from .routers.videos import router as videos_router
 from .routers.admin import router as admin_router
 from .routers.users import router as users_router
@@ -19,7 +19,7 @@ from pathlib import Path
 FRONTEND_DIST = Path("/app/frontend/dist")
 # Rutas del SPA (frontend/src/App.jsx). El resto recibe index.html con estado 404
 # para que el SPA muestre su página de error y los buscadores no indexen la URL.
-SPA_ROUTES = {"", "galeria", "figuras", "playlist", "contacto", "login"}
+SPA_ROUTES = {"", "galeria", "figuras", "playlist", "contacto", "login", "mis-pagos"}
 
 
 @asynccontextmanager
@@ -74,6 +74,7 @@ app.include_router(videos_router, prefix="/api/videos", tags=["videos"])
 app.include_router(instagram.router, prefix="/api/instagram", tags=["instagram"])
 app.include_router(contact.router, prefix="/api/contact", tags=["contact"])
 app.include_router(playlist.router, prefix="/api/playlist", tags=["playlist"])
+app.include_router(payments.router, prefix="/api/payments", tags=["payments"])
 
 # User auth
 app.include_router(users_router)
@@ -81,6 +82,7 @@ app.include_router(users_router)
 # Admin routers
 app.include_router(admin_router, prefix="/api/admin", tags=["admin"])
 app.include_router(playlist.admin_router, prefix="/api/admin/playlist", tags=["admin"])
+app.include_router(payments.admin_router, prefix="/api/admin/payments", tags=["admin"])
 
 # Optimized gallery files are served directly by the integrated application.
 app.mount("/images", StaticFiles(directory="/app/uploads"), name="images")
