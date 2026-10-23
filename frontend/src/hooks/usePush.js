@@ -26,9 +26,22 @@ async function postJSON(fetchFn, url, body) {
   return res.json()
 }
 
+// Estado compartido: al activar los avisos en un componente, los demás (p. ej. la barra) se enteran
+let sharedStatus = 'loading'
+const listeners = new Set()
+function setStatus(value) {
+  sharedStatus = value
+  listeners.forEach((listener) => listener(value))
+}
+
 // status: loading | unsupported | needs-install | denied | off | on
 export function usePush(fetchFn) {
-  const [status, setStatus] = useState('loading')
+  const [status, setLocalStatus] = useState(sharedStatus)
+
+  useEffect(() => {
+    listeners.add(setLocalStatus)
+    return () => listeners.delete(setLocalStatus)
+  }, [])
   // Se lee desde una ref para que el efecto inicial no se repita cuando cambia la función
   const fetchRef = useRef(fetchFn)
   fetchRef.current = fetchFn
