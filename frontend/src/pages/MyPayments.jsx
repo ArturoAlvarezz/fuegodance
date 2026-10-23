@@ -177,6 +177,7 @@ export default function MyPayments() {
                           <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wider ${badge.className}`}>{badge.label}</span>
                           <span className="text-silver text-sm">{formatCLP(m.amount)}</span>
                           {m.status === 'paid' && m.method && <span className="text-muted text-xs capitalize">· {m.method}</span>}
+                          {m.status === 'paid' && m.paid_at && <span className="text-muted text-xs">· {new Date(m.paid_at).toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' })}</span>}
                         </div>
                       </div>
                       {canUpload && (

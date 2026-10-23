@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApi, useAuth } from '../../hooks/useAuth'
-import { Wallet, ChevronLeft, ChevronRight, Save, Loader2, Banknote, Landmark, FileText, Undo2, Ban, X, MessageCircle, Search, Settings } from 'lucide-react'
+import { Wallet, ChevronLeft, ChevronRight, Save, Loader2, Banknote, Landmark, FileText, Undo2, Ban, X, MessageCircle, Search, Settings, Download, History } from 'lucide-react'
 import PushToggle from '../../components/common/PushToggle'
 import { formatCLP, monthLabel, nextPeriod, previousPeriod, paymentBadge } from '../../utils/payments'
 
@@ -25,6 +25,8 @@ export default function PaymentsAdmin() {
   const [saving, setSaving] = useState(false)
   const [busy, setBusy] = useState(null)
   const [message, setMessage] = useState(null)
+  const [history, setHistory] = useState(null)
+  const [exporting, setExporting] = useState(null)
 
   const handleAuthError = () => {
     logout()
@@ -72,11 +74,17 @@ export default function PaymentsAdmin() {
     }
   }
 
-  const update = async (row, changes) => {
-    setBusy(row.user_id)
+  const loadHistory = async (userId) => {
+    const res = await apiFetch(`/api/admin/payments/user/${userId}`)
+    if (res.status === 401) { handleAuthError(); return }
+    if (res.ok) setHistory(await res.json())
+  }
+
+  const update = async (row, changes, period = data.period) => {
+    setBusy(`${row.user_id}-${period}`)
     setMessage(null)
     try {
-      const res = await apiFetch(`/api/admin/payments/${row.user_id}/${data.period}`, {
+      const res = await apiFetch(`/api/admin/payments/${row.user_id}/${period}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(changes),
@@ -85,6 +93,7 @@ export default function PaymentsAdmin() {
       const body = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(body.detail || 'No se pudo guardar')
       await load()
+      if (history?.user.id === row.user_id) await loadHistory(row.user_id)
     } catch (err) {
       setMessage({ ok: false, text: err.message })
     } finally {
@@ -92,15 +101,36 @@ export default function PaymentsAdmin() {
     }
   }
 
-  const reject = (row) => {
+  const reject = (row, period = data.period) => {
     const reason = window.prompt(`¿Por qué rechazas el comprobante de ${row.full_name}? (lo verá el alumno)`, 'No pudimos verificar la transferencia')
     if (reason === null) return
-    update(row, { status: 'pending', note: reason })
+    update(row, { status: 'pending', note: reason }, period)
   }
 
-  const undo = (row) => {
-    if (!window.confirm(`¿Volver a dejar pendiente ${monthLabel(data.period)} de ${row.full_name}?`)) return
-    update(row, { status: 'pending', note: '' })
+  const undo = (row, period = data.period) => {
+    if (!window.confirm(`¿Volver a dejar pendiente ${monthLabel(period)} de ${row.full_name}?`)) return
+    update(row, { status: 'pending', note: '' }, period)
+  }
+
+  const exportCsv = async (query, key) => {
+    setExporting(key)
+    setMessage(null)
+    try {
+      const res = await apiFetch(`/api/admin/payments/export?${query}`)
+      if (res.status === 401) { handleAuthError(); return }
+      if (!res.ok) throw new Error('No se pudo exportar')
+      const name = res.headers.get('Content-Disposition')?.match(/filename="(.+)"/)?.[1] || 'mensualidades.csv'
+      const url = URL.createObjectURL(await res.blob())
+      const a = document.createElement('a')
+      a.href = url
+      a.download = name
+      a.click()
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+    } catch (err) {
+      setMessage({ ok: false, text: err.message })
+    } finally {
+      setExporting(null)
+    }
   }
 
   const openReceipt = async (row) => {
@@ -125,6 +155,56 @@ export default function PaymentsAdmin() {
       : `la mensualidad de ${monthLabel(row.owed_months[0] || data.period)}`
     const text = `Hola ${row.full_name.split(' ')[0]}! 🔥 Te recordamos que tienes pendiente ${months} de Fuego Dance. Puedes ver los datos de pago y subir tu comprobante en https://fuegodance.cl/mis-pagos`
     return `https://wa.me/56${row.phone}?text=${encodeURIComponent(text)}`
+  }
+
+  const btn = 'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold transition-all disabled:opacity-50'
+
+  // Acciones de un mes de un alumno; se usan en la lista mensual y en su historial
+  const renderActions = (user, m, period) => {
+    const loading = busy === `${user.user_id}-${period}`
+    return (
+      <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+        {loading && <Loader2 className="w-4 h-4 animate-spin text-muted" />}
+        {m.has_receipt && (
+          <button type="button" onClick={() => openReceipt(m)} className={`${btn} bg-white/5 text-silver hover:text-white`}>
+            <FileText className="w-4 h-4" /> Comprobante
+          </button>
+        )}
+        {m.status === 'review' && (
+          <>
+            <button type="button" disabled={loading} onClick={() => update(user, { status: 'paid', method: 'transferencia' }, period)} className={`${btn} bg-green-500/15 text-green-400 hover:bg-green-500/25`}>
+              <Landmark className="w-4 h-4" /> Aprobar
+            </button>
+            <button type="button" disabled={loading} onClick={() => reject(user, period)} className={`${btn} bg-white/5 text-silver hover:text-fire-red`}>
+              <X className="w-4 h-4" /> Rechazar
+            </button>
+          </>
+        )}
+        {m.status === 'pending' && (
+          <>
+            <button type="button" disabled={loading} onClick={() => update(user, { status: 'paid', method: 'efectivo', note: '' }, period)} className={`${btn} bg-green-500/15 text-green-400 hover:bg-green-500/25`}>
+              <Banknote className="w-4 h-4" /> Efectivo
+            </button>
+            <button type="button" disabled={loading} onClick={() => update(user, { status: 'paid', method: 'transferencia', note: '' }, period)} className={`${btn} bg-green-500/15 text-green-400 hover:bg-green-500/25`}>
+              <Landmark className="w-4 h-4" /> Transferencia
+            </button>
+            {user.owed_months && (
+              <a href={reminderUrl(user)} target="_blank" rel="noopener noreferrer" className={`${btn} bg-white/5 text-silver hover:text-green-400`}>
+                <MessageCircle className="w-4 h-4" /> Recordar
+              </a>
+            )}
+            <button type="button" disabled={loading} onClick={() => update(user, { status: 'waived' }, period)} title="Por ejemplo, vacaciones o beca" className={`${btn} bg-white/5 text-silver hover:text-white`}>
+              <Ban className="w-4 h-4" /> No corresponde
+            </button>
+          </>
+        )}
+        {(m.status === 'paid' || m.status === 'waived') && (
+          <button type="button" disabled={loading} onClick={() => undo(user, period)} className={`${btn} bg-white/5 text-silver hover:text-fire-orange`}>
+            <Undo2 className="w-4 h-4" /> Deshacer
+          </button>
+        )}
+      </div>
+    )
   }
 
   const rows = (data?.rows || []).filter((r) => {
@@ -199,6 +279,15 @@ export default function PaymentsAdmin() {
             <button type="button" onClick={() => setPeriod(nextPeriod(data.period))} aria-label="Mes siguiente" className="p-2 rounded-lg text-silver hover:text-fire-orange"><ChevronRight className="w-5 h-5" /></button>
           </div>
 
+          <div className="flex flex-wrap justify-end gap-2 mb-4">
+            <button type="button" disabled={!!exporting} onClick={() => exportCsv(`period=${data.period}`, 'month')} className={`${btn} bg-dark-charcoal text-silver hover:text-fire-orange`}>
+              {exporting === 'month' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} Exportar {monthLabel(data.period).toLowerCase()}
+            </button>
+            <button type="button" disabled={!!exporting} onClick={() => exportCsv(`year=${data.period.slice(0, 4)}`, 'year')} className={`${btn} bg-dark-charcoal text-silver hover:text-fire-orange`}>
+              {exporting === 'year' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} Exportar año {data.period.slice(0, 4)}
+            </button>
+          </div>
+
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
             <div className="bg-dark-charcoal rounded-xl p-4 border border-dark-ash">
               <p className="text-muted text-xs uppercase tracking-wider">Recaudado</p>
@@ -246,12 +335,14 @@ export default function PaymentsAdmin() {
             )}
             {rows.map((row) => {
               const badge = paymentBadge(row)
-              const loading = busy === row.user_id
-              const btn = 'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold transition-all disabled:opacity-50'
               return (
                 <div key={row.user_id} className="flex flex-col lg:flex-row lg:items-center gap-3 bg-dark-charcoal rounded-xl p-4 border border-dark-ash hover:border-fire-red/20 transition-all">
                   <div className="min-w-0 flex-1">
-                    <p className="text-white font-semibold">{row.full_name}{!row.is_active && <span className="text-muted text-xs font-normal"> · inactivo</span>}</p>
+                    <button type="button" onClick={() => loadHistory(row.user_id)} className="group inline-flex items-center gap-1.5 text-left text-white font-semibold hover:text-fire-orange transition-colors">
+                      {row.full_name}
+                      <History className="w-3.5 h-3.5 text-muted group-hover:text-fire-orange" />
+                      {!row.is_active && <span className="text-muted text-xs font-normal"> · inactivo</span>}
+                    </button>
                     <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-muted">
                       <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wider ${badge.className}`}>{badge.label}</span>
                       <span className="text-silver text-sm">{formatCLP(row.amount)}</span>
@@ -261,50 +352,57 @@ export default function PaymentsAdmin() {
                     </div>
                     {row.note && <p className="text-muted text-xs mt-1.5">Nota: {row.note}</p>}
                   </div>
-                  <div className="flex flex-wrap items-center gap-1.5 shrink-0">
-                    {loading && <Loader2 className="w-4 h-4 animate-spin text-muted" />}
-                    {row.has_receipt && (
-                      <button type="button" onClick={() => openReceipt(row)} className={`${btn} bg-white/5 text-silver hover:text-white`}>
-                        <FileText className="w-4 h-4" /> Comprobante
-                      </button>
-                    )}
-                    {row.status === 'review' && (
-                      <>
-                        <button type="button" disabled={loading} onClick={() => update(row, { status: 'paid', method: 'transferencia' })} className={`${btn} bg-green-500/15 text-green-400 hover:bg-green-500/25`}>
-                          <Landmark className="w-4 h-4" /> Aprobar
-                        </button>
-                        <button type="button" disabled={loading} onClick={() => reject(row)} className={`${btn} bg-white/5 text-silver hover:text-fire-red`}>
-                          <X className="w-4 h-4" /> Rechazar
-                        </button>
-                      </>
-                    )}
-                    {row.status === 'pending' && (
-                      <>
-                        <button type="button" disabled={loading} onClick={() => update(row, { status: 'paid', method: 'efectivo', note: '' })} className={`${btn} bg-green-500/15 text-green-400 hover:bg-green-500/25`}>
-                          <Banknote className="w-4 h-4" /> Efectivo
-                        </button>
-                        <button type="button" disabled={loading} onClick={() => update(row, { status: 'paid', method: 'transferencia', note: '' })} className={`${btn} bg-green-500/15 text-green-400 hover:bg-green-500/25`}>
-                          <Landmark className="w-4 h-4" /> Transferencia
-                        </button>
-                        <a href={reminderUrl(row)} target="_blank" rel="noopener noreferrer" className={`${btn} bg-white/5 text-silver hover:text-green-400`}>
-                          <MessageCircle className="w-4 h-4" /> Recordar
-                        </a>
-                        <button type="button" disabled={loading} onClick={() => update(row, { status: 'waived' })} title="Por ejemplo, vacaciones o beca" className={`${btn} bg-white/5 text-silver hover:text-white`}>
-                          <Ban className="w-4 h-4" /> No corresponde
-                        </button>
-                      </>
-                    )}
-                    {(row.status === 'paid' || row.status === 'waived') && (
-                      <button type="button" disabled={loading} onClick={() => undo(row)} className={`${btn} bg-white/5 text-silver hover:text-fire-orange`}>
-                        <Undo2 className="w-4 h-4" /> Deshacer
-                      </button>
-                    )}
-                  </div>
+                  {renderActions(row, row, data.period)}
                 </div>
               )
             })}
           </div>
         </>
+      )}
+
+      {history && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-end sm:items-center justify-center sm:p-4" onClick={() => setHistory(null)} role="presentation">
+          <div onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="history-title" className="w-full max-w-2xl max-h-[90vh] flex flex-col bg-dark-charcoal rounded-t-2xl sm:rounded-2xl border border-dark-ash">
+            <div className="p-5 border-b border-dark-ash">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h2 id="history-title" className="font-heading text-3xl tracking-wider truncate">{history.user.full_name.toUpperCase()}</h2>
+                  <p className="text-muted text-xs">+56 {history.user.phone}{!history.user.is_active && ' · inactivo'}</p>
+                </div>
+                <button type="button" onClick={() => setHistory(null)} aria-label="Cerrar" className="text-silver hover:text-white shrink-0"><X className="w-5 h-5" /></button>
+              </div>
+              <div className="grid grid-cols-2 gap-3 mt-4">
+                <div className="bg-dark-obsidian rounded-xl p-3">
+                  <p className="text-muted text-xs uppercase tracking-wider">Ha pagado</p>
+                  <p className="font-heading text-2xl tracking-wider text-green-400">{formatCLP(history.paid_total)}</p>
+                </div>
+                <div className="bg-dark-obsidian rounded-xl p-3">
+                  <p className="text-muted text-xs uppercase tracking-wider">Debe</p>
+                  <p className={`font-heading text-2xl tracking-wider ${history.owed > 0 ? 'text-fire-red' : 'text-silver'}`}>{formatCLP(history.owed)}</p>
+                </div>
+              </div>
+            </div>
+            <ul className="overflow-y-auto p-5 space-y-3">
+              {history.months.length === 0 && <li className="text-muted text-sm text-center py-6">Todavía no tiene meses de cobro</li>}
+              {history.months.map((m) => {
+                const badge = paymentBadge(m)
+                return (
+                  <li key={m.period} className="flex flex-col gap-2 bg-dark-obsidian rounded-xl p-3 border border-dark-ash">
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+                      <span className="text-white font-semibold text-sm">{monthLabel(m.period)}</span>
+                      <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wider ${badge.className}`}>{badge.label}</span>
+                      <span className="text-silver text-sm">{formatCLP(m.amount)}</span>
+                      {m.status === 'paid' && m.method && <span className="capitalize">· {m.method}</span>}
+                      {m.paid_at && <span>· {new Date(m.paid_at).toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' })}</span>}
+                    </div>
+                    {m.note && <p className="text-muted text-xs">Nota: {m.note}</p>}
+                    {renderActions({ user_id: history.user.id, full_name: history.user.full_name }, m, m.period)}
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+        </div>
       )}
     </div>
   )

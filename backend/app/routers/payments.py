@@ -1,3 +1,5 @@
+import csv
+import io
 import os
 import re
 import uuid
@@ -6,7 +8,7 @@ from typing import Optional
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -94,6 +96,13 @@ def is_overdue(period: str, status: str, due_day: int) -> bool:
     return period < current or (period == current and today.day > due_day)
 
 
+def as_chile_time(value: datetime) -> datetime:
+    """SQLite devuelve las fechas sin zona: se guardan en UTC."""
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(TZ)
+
+
 def serialize_month(period: str, payment: Optional[Payment], settings: dict) -> dict:
     status = payment.status if payment else "pending"
     return {
@@ -104,7 +113,7 @@ def serialize_month(period: str, payment: Optional[Payment], settings: dict) -> 
         "amount": payment.amount if payment and status != "pending" else settings["monthly_fee"],
         "method": payment.method if payment else None,
         "note": payment.note if payment else None,
-        "paid_at": payment.paid_at.isoformat() if payment and payment.paid_at else None,
+        "paid_at": as_chile_time(payment.paid_at).isoformat() if payment and payment.paid_at else None,
         "has_receipt": bool(payment and payment.receipt_filename),
         "payment_id": payment.id if payment else None,
     }
@@ -296,6 +305,67 @@ def admin_list_payments(period: Optional[str] = Query(None), db: Session = Depen
     summary["collected"] = sum(r["amount"] for r in rows if r["status"] == "paid")
     summary["expected"] = sum(r["amount"] for r in rows if r["status"] != "waived")
     return {"period": period, "current_period": current, "settings": settings, "rows": rows, "summary": summary}
+
+
+@admin_router.get("/user/{user_id}")
+def admin_user_history(user_id: int, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Alumno no encontrado")
+    settings = get_settings(db)
+    months = student_months(user, db.query(Payment).filter(Payment.user_id == user.id).all(), settings)
+    return {
+        "user": {"id": user.id, "full_name": user.full_name, "phone": user.phone, "is_active": user.is_active},
+        "months": months,
+        "owed": sum(m["amount"] for m in months if m["status"] == "pending"),
+        "paid_total": sum(m["amount"] for m in months if m["status"] == "paid"),
+    }
+
+
+STATUS_LABELS = {"pending": "Pendiente", "review": "En revisión", "paid": "Pagado", "waived": "No corresponde"}
+
+
+@admin_router.get("/export")
+def admin_export(period: Optional[str] = Query(None), year: Optional[int] = Query(None), db: Session = Depends(get_db)):
+    """CSV para Excel (separado por punto y coma, con BOM para que abra bien los acentos)."""
+    if period:
+        validate_period(period)
+        first, last, name = period, period, f"mensualidades-{period}"
+    elif year and 2000 <= year <= 2100:
+        first, last, name = f"{year}-01", f"{year}-12", f"mensualidades-{year}"
+    else:
+        raise HTTPException(status_code=400, detail="Indica un mes (AAAA-MM) o un año")
+    settings = get_settings(db)
+    current = current_period()
+
+    payments: dict[int, dict[str, Payment]] = {}
+    for p in db.query(Payment).filter(Payment.period >= first, Payment.period <= last).all():
+        payments.setdefault(p.user_id, {})[p.period] = p
+
+    out = io.StringIO()
+    writer = csv.writer(out, delimiter=";")
+    writer.writerow(["Alumno", "Teléfono", "Mes", "Estado", "Monto", "Medio de pago", "Fecha de pago", "Nota"])
+    for user in db.query(User).order_by(User.full_name).all():
+        records = payments.get(user.id, {})
+        # Igual que en la vista mensual: los meses ya transcurridos desde que se le cobra, más lo registrado
+        periods = set(records)
+        if user.is_active:
+            start = max(user_start_period(user, settings["billing_start"]), first)
+            periods.update(periods_between(start, min(last, current)))
+        for period_ in sorted(periods):
+            m = serialize_month(period_, records.get(period_), settings)
+            paid_at = records[period_].paid_at if period_ in records else None
+            status = "Atrasado" if m["overdue"] else STATUS_LABELS[m["status"]]
+            writer.writerow([
+                user.full_name, f"+56{user.phone}", period_, status, m["amount"],
+                (m["method"] or "").capitalize() if m["status"] == "paid" else "",
+                as_chile_time(paid_at).strftime("%d-%m-%Y") if paid_at else "", m["note"] or "",
+            ])
+    return Response(
+        content="\ufeff" + out.getvalue(),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{name}.csv"'},
+    )
 
 
 @admin_router.put("/{user_id}/{period}")
