@@ -5,14 +5,16 @@ from fastapi.responses import FileResponse
 from contextlib import asynccontextmanager
 from sqlalchemy import inspect, text
 from .database import engine, Base, SessionLocal
-from .models import Figure, GalleryPhoto, Video, ContactMessage, AdminUser, User, PlaylistSong, SongVote, Setting, Payment
+from .models import Figure, GalleryPhoto, Video, ContactMessage, AdminUser, User, PlaylistSong, SongVote, Setting, Payment, PushSubscription, ReminderLog
 from .auth import create_default_admin
 from .services.gallery_images import backfill_dimensions
-from .routers import figures, gallery, instagram, contact, playlist, payments
+from .services.reminders import reminders_loop
+from .routers import figures, gallery, instagram, contact, playlist, payments, push
 from .routers.videos import router as videos_router
 from .routers.admin import router as admin_router
 from .routers.users import router as users_router
 
+import asyncio
 import os
 from pathlib import Path
 
@@ -42,7 +44,9 @@ async def lifespan(app: FastAPI):
     create_default_admin()
     with SessionLocal() as db:
         backfill_dimensions(db)
+    reminders = asyncio.create_task(reminders_loop())
     yield
+    reminders.cancel()
 
 
 app = FastAPI(
@@ -75,6 +79,7 @@ app.include_router(instagram.router, prefix="/api/instagram", tags=["instagram"]
 app.include_router(contact.router, prefix="/api/contact", tags=["contact"])
 app.include_router(playlist.router, prefix="/api/playlist", tags=["playlist"])
 app.include_router(payments.router, prefix="/api/payments", tags=["payments"])
+app.include_router(push.router, prefix="/api/push", tags=["push"])
 
 # User auth
 app.include_router(users_router)
@@ -102,6 +107,8 @@ def serve_frontend(path: str):
         # Los archivos de assets/ llevan hash en el nombre: pueden cachearse para siempre
         if path.startswith("assets/"):
             return FileResponse(requested, headers={"Cache-Control": "public, max-age=31536000, immutable"})
+        if path == "sw.js":
+            return FileResponse(requested, headers={"Cache-Control": "no-cache"})
         return FileResponse(requested)
     if path.startswith(("assets/", "api/")):
         raise HTTPException(status_code=404)

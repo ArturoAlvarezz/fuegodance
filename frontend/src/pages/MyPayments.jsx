@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { Wallet, Upload, Copy, Check, Loader2, CalendarClock, Landmark, Banknote } from 'lucide-react'
 import { useAuth, useUserApi } from '../hooks/useAuth'
+import PushToggle from '../components/common/PushToggle'
 import { formatCLP, monthLabel, nextPeriod, paymentBadge } from '../utils/payments'
 
 export default function MyPayments() {
@@ -141,6 +142,12 @@ export default function MyPayments() {
                 <p className="text-muted text-xs mt-3">Lo registramos nosotros y aparecerá aquí como pagado. No necesitas subir comprobante.</p>
               </div>
             </div>
+
+            <PushToggle
+              fetchFn={userApiFetch}
+              description="Te avisamos antes de que venza tu mensualidad y cuando confirmemos tu pago."
+              className="mb-6"
+            />
 
             {message && (
               <p className={`mb-4 text-sm text-center ${message.ok ? 'text-green-400' : 'text-fire-red'}`}>{message.text}</p>

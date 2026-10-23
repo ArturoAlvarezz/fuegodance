@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from typing import Optional
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from ..auth import get_authenticated_user, get_current_admin
 from ..database import get_db
 from ..models import Payment, Setting, User
+from ..services import push
 
 router = APIRouter()
 admin_router = APIRouter(dependencies=[Depends(get_current_admin)])
@@ -31,6 +32,7 @@ DEFAULTS = {
     "monthly_fee": "30000",
     "due_day": "5",
     "transfer_info": "",
+    "reminders_enabled": "1",
 }
 
 
@@ -73,6 +75,7 @@ def get_settings(db: Session) -> dict:
         "due_day": int(values["due_day"]),
         "transfer_info": values["transfer_info"],
         "billing_start": values["billing_start"],
+        "reminders_enabled": values["reminders_enabled"] == "1",
     }
 
 
@@ -161,6 +164,7 @@ def my_payments(current_user: dict = Depends(get_authenticated_user), db: Sessio
 @router.post("/me/{period}/receipt")
 def upload_receipt(
     period: str,
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     note: Optional[str] = Form(None),
     current_user: dict = Depends(get_authenticated_user),
@@ -202,6 +206,13 @@ def upload_receipt(
     payment.note = (note or "").strip()[:500] or None
     db.commit()
     db.refresh(payment)
+    background_tasks.add_task(
+        push.notify_admins,
+        "Nuevo comprobante",
+        f"{user.full_name} subió el comprobante de {push.month_label(period)} ({push.format_clp(payment.amount)})",
+        "/admin/pagos",
+        f"comprobante-{payment.id}",
+    )
     return serialize_month(period, payment, settings)
 
 
@@ -212,6 +223,7 @@ class SettingsIn(BaseModel):
     due_day: int
     transfer_info: str = ""
     billing_start: str
+    reminders_enabled: bool = True
 
 
 class PaymentUpdate(BaseModel):
@@ -239,6 +251,7 @@ def admin_update_settings(data: SettingsIn, db: Session = Depends(get_db)):
         "due_day": str(data.due_day),
         "transfer_info": data.transfer_info.strip()[:1000],
         "billing_start": data.billing_start,
+        "reminders_enabled": "1" if data.reminders_enabled else "0",
     }
     for key, value in values.items():
         db.merge(Setting(key=key, value=value))
@@ -286,7 +299,7 @@ def admin_list_payments(period: Optional[str] = Query(None), db: Session = Depen
 
 
 @admin_router.put("/{user_id}/{period}")
-def admin_update_payment(user_id: int, period: str, data: PaymentUpdate, db: Session = Depends(get_db)):
+def admin_update_payment(user_id: int, period: str, data: PaymentUpdate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     validate_period(period)
     if data.status not in STATUSES:
         raise HTTPException(status_code=400, detail="Estado no válido")
@@ -303,6 +316,7 @@ def admin_update_payment(user_id: int, period: str, data: PaymentUpdate, db: Ses
     if not payment:
         payment = Payment(user_id=user_id, period=period)
         db.add(payment)
+    previous_status = payment.status or "pending"
 
     payment.status = data.status
     if data.method is not None:
@@ -317,6 +331,18 @@ def admin_update_payment(user_id: int, period: str, data: PaymentUpdate, db: Ses
         payment.amount = data.amount if data.amount is not None else settings["monthly_fee"]
     db.commit()
     db.refresh(payment)
+
+    month = push.month_label(period)
+    if data.status == "paid" and previous_status != "paid":
+        background_tasks.add_task(
+            push.notify_user, user_id, "Pago confirmado ✅",
+            f"Registramos tu mensualidad de {month} ({push.format_clp(payment.amount)}). ¡Gracias!",
+        )
+    elif data.status == "pending" and previous_status == "review":
+        background_tasks.add_task(
+            push.notify_user, user_id, "Revisa tu comprobante",
+            payment.note or f"No pudimos confirmar tu pago de {month}. Sube el comprobante de nuevo.",
+        )
     return serialize_month(period, payment, settings)
 
 

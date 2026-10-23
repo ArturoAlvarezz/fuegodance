@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session, joinedload
 from typing import Optional
 from pydantic import BaseModel, Field
 from ..database import get_db
-from ..models import Figure, GalleryPhoto, Video, ContactMessage, AdminUser, User, PlaylistSong, SongVote
+from ..models import Figure, GalleryPhoto, Video, ContactMessage, AdminUser, User, PlaylistSong, SongVote, PushSubscription, ReminderLog
 from ..auth import get_current_admin, verify_password, hash_password, create_admin_token
 from ..services.gallery_images import generate_previews, remove_previews
 from .payments import delete_user_payments
@@ -429,6 +429,8 @@ def admin_delete_user(user_id: int, db: Session = Depends(get_db)):
     db.query(SongVote).filter(SongVote.user_id == user_id).delete()
     db.query(PlaylistSong).filter(PlaylistSong.added_by_id == user_id).update({PlaylistSong.added_by_id: None})
     delete_user_payments(db, user_id)
+    db.query(PushSubscription).filter(PushSubscription.user_id == user_id).delete()
+    db.query(ReminderLog).filter(ReminderLog.user_id == user_id).delete()
     db.delete(user)
     db.commit()
     return {"status": "deleted", "id": user_id}

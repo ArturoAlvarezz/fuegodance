@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApi, useAuth } from '../../hooks/useAuth'
 import { Wallet, ChevronLeft, ChevronRight, Save, Loader2, Banknote, Landmark, FileText, Undo2, Ban, X, MessageCircle, Search, Settings } from 'lucide-react'
+import PushToggle from '../../components/common/PushToggle'
 import { formatCLP, monthLabel, nextPeriod, previousPeriod, paymentBadge } from '../../utils/payments'
 
 const tabs = [
@@ -163,6 +164,10 @@ export default function PaymentsAdmin() {
             <textarea id="transfer" rows={4} maxLength={1000} value={settings.transfer_info} onChange={(e) => setSettings({ ...settings, transfer_info: e.target.value })} placeholder={'Nombre\nRUT\nBanco y tipo de cuenta\nNúmero de cuenta\nCorreo'} className="w-full px-4 py-2.5 rounded-lg bg-dark-obsidian border border-dark-ash text-white placeholder:text-muted focus:outline-none focus:border-fire-orange/60" />
             <p className="text-muted text-xs mt-1">Al cambiar la mensualidad, los meses pendientes se cobran al nuevo valor. Los pagos ya registrados conservan su monto.</p>
           </div>
+          <label className="sm:col-span-3 flex items-start gap-3 text-sm text-silver cursor-pointer">
+            <input type="checkbox" checked={settings.reminders_enabled} onChange={(e) => setSettings({ ...settings, reminders_enabled: e.target.checked })} className="mt-0.5 w-4 h-4 accent-fire-red" />
+            <span>Enviar recordatorios automáticos a los alumnos con avisos activados: 3 días antes del vencimiento, el día que vence y 3 días después si sigue pendiente.</span>
+          </label>
           <div className="sm:col-span-3 flex justify-end">
             <button type="submit" disabled={saving} className="inline-flex items-center gap-2 px-5 py-2.5 bg-fire-red text-white rounded-lg font-heading tracking-wider hover:bg-fire-orange transition-all disabled:opacity-60">
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Guardar
@@ -170,6 +175,12 @@ export default function PaymentsAdmin() {
           </div>
         </form>
       )}
+
+      <PushToggle
+        fetchFn={apiFetch}
+        description="Te avisamos en este dispositivo cuando un alumno sube un comprobante."
+        className="mb-4 !rounded-xl !bg-dark-charcoal border-dark-ash"
+      />
 
       {message && (
         <p className={`mb-4 text-sm ${message.ok ? 'text-green-400' : 'text-fire-red'}`}>{message.text}</p>

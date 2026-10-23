@@ -128,3 +128,28 @@ class Payment(Base):
     paid_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+
+class PushSubscription(Base):
+    """Dispositivo (navegador) que recibe notificaciones push de un alumno o del admin."""
+    __tablename__ = "push_subscriptions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    endpoint = Column(String(1000), unique=True, nullable=False)
+    p256dh = Column(String(200), nullable=False)
+    auth = Column(String(100), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
+    is_admin = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class ReminderLog(Base):
+    """Recordatorios de mensualidad ya enviados, para no repetirlos tras un reinicio."""
+    __tablename__ = "reminder_logs"
+    __table_args__ = (UniqueConstraint("user_id", "period", "kind"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    period = Column(String(7), nullable=False)
+    kind = Column(String(20), nullable=False)  # before, due, overdue
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
