@@ -1,6 +1,7 @@
 import { Instagram, MapPin, MessageCircle, Flame } from 'lucide-react'
 import logo from '../../assets/logo.jpg'
 import { CONTACT, LOCATIONS } from '../../data/fuegoContent'
+import SinopiaCredito from './SinopiaCredito'
 
 export default function Footer() {
   return (
@@ -52,6 +53,7 @@ export default function Footer() {
         <div className="mt-10 pt-8 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-muted text-xs">© 2026 Fuego Dance. Todos los derechos reservados.</p>
           <p className="text-muted text-xs">Hecho con 🔥 para la comunidad salsera</p>
+          <span className="text-silver"><SinopiaCredito /></span>
         </div>
       </div>
     </footer>
