@@ -1,5 +1,6 @@
 # Etapa 1: compilar la aplicación React
-FROM node:20-alpine AS frontend-build
+# El frontend es estático (HTML/JS/CSS): se compila en la arquitectura del runner, sin emular arm64 con QEMU.
+FROM --platform=$BUILDPLATFORM node:20-alpine AS frontend-build
 WORKDIR /app/frontend
 
 COPY frontend/package.json frontend/package-lock.json ./
