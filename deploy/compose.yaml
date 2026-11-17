@@ -6,6 +6,8 @@ services:
     image: ${IMAGEN:?IMAGEN no definida}
     container_name: ${CONTENEDOR:?CONTENEDOR no definido}
     restart: unless-stopped
+    # Red bridge de Docker: un solo contenedor no necesita red propia, y la VM tiene un número limitado de redes.
+    network_mode: bridge
     env_file:
       - .env
     environment:
