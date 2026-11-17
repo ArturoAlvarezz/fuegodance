@@ -1,0 +1,285 @@
+# Plantilla CI/CD de Sinopia Labs v2 (centro de conocimiento: plantilla-ci-cd-con-github-actions). No editar fuera del bloque env.
+#
+# PR desde una rama del repo -> pruebas (/opt/stacks/<STACK>-pruebas) · push a main -> producción (/opt/stacks/<STACK>)
+# PR desde un fork o de Dependabot -> solo build · Run workflow -> el destino elegido.
+# Requiere los secretos TS_OAUTH_CLIENT_ID, TS_OAUTH_SECRET y CENTRAL_CI_TOKEN, y el contrato del proyecto:
+# Dockerfile, deploy/compose.yaml (IMAGEN, CONTENEDOR, PUERTO), deploy/env.example (marcas # generar, # generar-clave,
+# # requerido: el .env se crea y completa en la VM) y, opcional, deploy/antes.sh.
+name: CI/CD
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      destino:
+        description: Dónde desplegar la rama elegida
+        type: choice
+        options: [pruebas, produccion]
+        default: pruebas
+
+# --- Datos del proyecto: lo único que se edita al copiar la plantilla ---
+env:
+  PROYECTO: fuego-dance         # slug del proyecto en Central
+  STACK: fuego-dance-app        # /opt/stacks/fuego-dance-app y /opt/stacks/fuego-dance-app-pruebas
+  SALUD: /api/health            # ruta que responde 2xx cuando el sitio está sano
+  PUERTO_PRODUCCION: 8083
+  PUERTO_PRUEBAS: 8183          # producción + 100
+# --- Fin de los datos del proyecto ---
+  CENTRAL_API: https://central.arturoalvarez.dev/api/v1
+  VM: deploy@docker
+
+permissions:
+  contents: read
+
+jobs:
+  destino:
+    runs-on: ubuntu-latest
+    outputs:
+      destino: ${{ steps.calc.outputs.destino }}
+      desplegar: ${{ steps.calc.outputs.desplegar }}
+      puerto: ${{ steps.calc.outputs.puerto }}
+      carpeta: ${{ steps.calc.outputs.carpeta }}
+      contenedor: ${{ steps.calc.outputs.contenedor }}
+      sha7: ${{ steps.calc.outputs.sha7 }}
+      ref: ${{ steps.calc.outputs.ref }}
+    steps:
+      - id: calc
+        env:
+          EVENTO: ${{ github.event_name }}
+          ELEGIDO: ${{ inputs.destino }}
+          REPO_PR: ${{ github.event.pull_request.head.repo.full_name }}
+          SHA_PR: ${{ github.event.pull_request.head.sha }}
+          RAMA_PR: ${{ github.head_ref }}
+        run: |
+          desplegar=true
+          case "$EVENTO" in
+            push) destino=produccion; sha=$GITHUB_SHA; ref=$GITHUB_REF_NAME ;;
+            workflow_dispatch) destino=$ELEGIDO; sha=$GITHUB_SHA; ref=$GITHUB_REF_NAME ;;
+            pull_request)
+              destino=pruebas; sha=$SHA_PR; ref=$RAMA_PR
+              # Un fork no recibe secretos ni toca la VM: solo se construye.
+              if [ "$REPO_PR" != "$GITHUB_REPOSITORY" ]; then desplegar=false; fi
+              # Dependabot no recibe los secretos del repo: también solo se construye.
+              if [ "$GITHUB_ACTOR" = "dependabot[bot]" ]; then desplegar=false; fi ;;
+            *) echo "Evento no soportado: $EVENTO" >&2; exit 1 ;;
+          esac
+          if [ "$destino" = produccion ]; then
+            puerto=$PUERTO_PRODUCCION; contenedor=$STACK
+          else
+            puerto=$PUERTO_PRUEBAS; contenedor=$STACK-pruebas
+          fi
+          {
+            echo "destino=$destino"
+            echo "desplegar=$desplegar"
+            echo "puerto=$puerto"
+            echo "contenedor=$contenedor"
+            echo "carpeta=/opt/stacks/$contenedor"
+            echo "sha7=${sha:0:7}"
+            echo "ref=$ref"
+          } >> "$GITHUB_OUTPUT"
+
+  desplegar:
+    needs: destino
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # En pruebas, un push nuevo cancela el despliegue anterior; en producción se hacen en fila, sin cancelar.
+    concurrency:
+      # Las ejecuciones que no despliegan (forks, bots) van en su propio grupo y no cancelan a nadie.
+      group: desplegar-${{ github.repository }}-${{ needs.destino.outputs.desplegar == 'true' && needs.destino.outputs.destino || github.run_id }}
+      cancel-in-progress: ${{ needs.destino.outputs.destino == 'pruebas' }}
+    env:
+      DESTINO: ${{ needs.destino.outputs.destino }}
+      DESPLEGAR: ${{ needs.destino.outputs.desplegar }}
+      PUERTO: ${{ needs.destino.outputs.puerto }}
+      CARPETA: ${{ needs.destino.outputs.carpeta }}
+      CONTENEDOR: ${{ needs.destino.outputs.contenedor }}
+      IMAGEN: ${{ needs.destino.outputs.contenedor }}:${{ needs.destino.outputs.sha7 }}
+      SHA7: ${{ needs.destino.outputs.sha7 }}
+      REF: ${{ needs.destino.outputs.ref }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Registrar en Central
+        id: registro
+        if: env.DESPLEGAR == 'true'
+        continue-on-error: true
+        env:
+          TOKEN: ${{ secrets.CENTRAL_CI_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          cuerpo=$(jq -n --arg p "$PROYECTO" --arg t "$DESTINO" --arg r "$REF" --arg s "$SHA7" \
+            --arg a "$GITHUB_ACTOR" --arg u "$RUN_URL" \
+            '{project:$p, target:$t, ref:$r, commitSha:$s, actor:$a, runUrl:$u}')
+          id=$(curl -fsS -X POST "$CENTRAL_API/deploys/ci" -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" -d "$cuerpo" | jq -r .deploy.id)
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Construir (lint, typecheck, pruebas y build van en el Dockerfile)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: ${{ env.IMAGEN }}
+          cache-from: type=gha,scope=${{ env.STACK }}
+          cache-to: type=gha,mode=max,scope=${{ env.STACK }}
+
+      - name: Conectar a la tailnet
+        if: env.DESPLEGAR == 'true'
+        uses: tailscale/github-action@v3
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+
+      - name: Enviar la imagen y desplegar
+        if: env.DESPLEGAR == 'true'
+        run: |
+          set -o pipefail
+          ssh_vm() { ssh -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$VM" "$@"; }
+          copiar_vm() { scp -o BatchMode=yes "$@"; }
+          # Script que corre en la VM: valida, guarda :previous, reinicia, espera la salud y vuelve atrás si falla.
+          cat > desplegar-vm.sh <<'REMOTO'
+          set -euo pipefail
+          CARPETA=$1 IMAGEN=$2 PUERTO=$3 SALUD=$4 CONTENEDOR=$5 TMP=$6
+          REPO=${IMAGEN%%:*}
+          export IMAGEN CONTENEDOR PUERTO TMP
+          trap 'rm -rf "$TMP"' EXIT
+
+          # Completa el .env del stack a partir de env.example, sin mostrar nunca los valores.
+          # Marcas en env.example (al final de la línea):
+          #   # generar        → valor aleatorio largo (claves de sesión, secretos internos)
+          #   # generar-clave  → contraseña legible, se avisa para leerla una vez en el .env
+          #   # requerido      → no se puede generar (credenciales de terceros): se avisa si está vacío
+          # Solo rellena variables vacías o ausentes; nunca cambia un valor que ya existe.
+          completar_env() {
+            local ejemplo=$1 env=$2 linea nombre valor marca actual faltan=() generadas=() claves=()
+            if [[ ! -f "$env" ]]; then
+              (umask 077; : > "$env")
+              echo "Se creó $env desde env.example."
+              # Copia las líneas sin marca tal cual (valores por defecto y comentarios); las marcadas van sin la marca.
+              sed -E 's/[[:space:]]+#[[:space:]]*(generar-clave|generar|requerido)[[:space:]]*$//' "$ejemplo" >> "$env"
+            fi
+            while IFS= read -r linea; do
+              [[ $linea =~ ^([A-Z_][A-Z0-9_]*)=([^#]*)#[[:space:]]*(generar-clave|generar|requerido)[[:space:]]*$ ]] || continue
+              nombre=${BASH_REMATCH[1]} marca=${BASH_REMATCH[3]}
+              actual=$(grep -m1 -E "^${nombre}=" "$env" | cut -d= -f2- || true)
+              [[ -n ${actual//[[:space:]]/} ]] && continue
+              case $marca in
+                generar) valor=$(openssl rand -hex 32); generadas+=("$nombre") ;;
+                generar-clave) valor=$(openssl rand -base64 24 | tr -d '/+=\n' | cut -c1-20); claves+=("$nombre") ;;
+                requerido) faltan+=("$nombre"); continue ;;
+              esac
+              if grep -q -E "^${nombre}=" "$env"; then
+                sed -i -E "s|^${nombre}=.*|${nombre}=${valor}|" "$env"
+              else
+                printf '%s=%s\n' "$nombre" "$valor" >> "$env"
+              fi
+            done < "$ejemplo"
+            if (( ${#generadas[@]} )); then echo "Generados en la VM: ${generadas[*]}."; fi
+            if (( ${#claves[@]} )); then echo "Contraseñas generadas (léelas una vez en $env): ${claves[*]}."; fi
+            if (( ${#faltan[@]} )); then echo "Faltan datos de terceros en $env: ${faltan[*]}." >&2; fi
+            return 0
+          }
+
+          if ! mkdir -p "$CARPETA" 2>/dev/null; then
+            echo "No se pudo crear $CARPETA: el usuario deploy necesita escribir en $(dirname "$CARPETA") (ver plantilla-ci-cd-con-github-actions)." >&2
+            exit 1
+          fi
+          if [[ -f "$TMP/env.example" ]]; then
+            completar_env "$TMP/env.example" "$CARPETA/.env"
+          elif [[ ! -f "$CARPETA/.env" ]]; then
+            echo "Falta $CARPETA/.env y el repo no tiene deploy/env.example para crearlo." >&2
+            exit 1
+          fi
+
+          # One deploy per stack at a time: a cancelled run's deploy keeps running here and finishes first.
+          exec 9>"$CARPETA/.desplegando"
+          flock 9
+
+          anterior=""
+          if docker container inspect "$CONTENEDOR" >/dev/null 2>&1; then
+            anterior=$(docker inspect -f '{{.Config.Image}}' "$CONTENEDOR")
+            if [[ "$anterior" != "$IMAGEN" ]]; then docker tag "$anterior" "$REPO:previous"; fi
+          fi
+
+          volver() {
+            echo "$1 Últimas líneas del contenedor:" >&2
+            docker logs --tail 50 "$CONTENEDOR" >&2 || true
+            if [[ -n "$anterior" ]] && docker image inspect "$REPO:previous" >/dev/null 2>&1; then
+              echo "Volviendo a la versión anterior ($REPO:previous)." >&2
+              IMAGEN="$REPO:previous" docker compose up -d --force-recreate || echo "No se pudo levantar la versión anterior: revisar a mano." >&2
+            else
+              echo "No hay versión anterior: se baja el contenedor." >&2
+              docker compose down || true
+            fi
+            exit 1
+          }
+
+          install -m 0644 "$TMP/compose.yaml" "$CARPETA/compose.yaml"
+          cd "$CARPETA"
+          if [[ -f "$TMP/antes.sh" ]]; then bash "$TMP/antes.sh"; fi
+          if ! docker compose up -d --remove-orphans; then volver "docker compose up falló."; fi
+
+          for _ in $(seq 1 30); do
+            if curl -fsS --max-time 5 -o /dev/null "http://127.0.0.1:$PUERTO$SALUD"; then
+              echo "Desplegado $IMAGEN en $CARPETA (puerto $PUERTO)."
+              docker images --format '{{.Repository}}:{{.Tag}}' "$REPO" | grep -vxF -e "$IMAGEN" -e "$REPO:previous" | xargs -r docker rmi >/dev/null 2>&1 || true
+              exit 0
+            fi
+            sleep 2
+          done
+          volver "$IMAGEN no respondió en http://127.0.0.1:$PUERTO$SALUD tras unos 90 s."
+          REMOTO
+          docker save "$IMAGEN" | gzip -1 | ssh_vm 'gunzip | docker load'
+          tmp=$(ssh_vm mktemp -d)
+          printf '%s\n' "$CARPETA" "$IMAGEN" "$PUERTO" "$SALUD" "$CONTENEDOR" "$tmp" > args
+          archivos=(desplegar-vm.sh args deploy/compose.yaml)
+          for opcional in deploy/env.example deploy/antes.sh deploy/snapshot-db.sh; do
+            if [ -f "$opcional" ]; then archivos+=("$opcional"); fi
+          done
+          copiar_vm "${archivos[@]}" "$VM:$tmp/"
+          # Se ejecuta desligado de esta conexión: si el job se cancela o se corta la red, el despliegue en la VM
+          # termina igual (y vuelve atrás si falla). Aquí solo se espera el resultado.
+          ssh_vm "setsid nohup bash -c 'mapfile -t a < $tmp/args; bash $tmp/desplegar-vm.sh \"\${a[@]}\" > $tmp.log 2>&1; echo \$? > $tmp.exit' < /dev/null > /dev/null 2>&1 &"
+          for _ in $(seq 1 120); do
+            sleep 5
+            if ssh_vm "test -f $tmp.exit"; then break; fi
+          done
+          ssh_vm "cat $tmp.log 2>/dev/null" | tee despliegue.log || true
+          codigo=$(ssh_vm "cat $tmp.exit 2>/dev/null" || true)
+          ssh_vm "rm -f $tmp.log $tmp.exit" || true
+          if [ -z "$codigo" ]; then echo "El despliegue sigue corriendo en la VM tras 10 min; revisar $tmp.log allá." >&2; exit 1; fi
+          exit "$codigo"
+
+      - name: Informar a Central
+        if: always() && steps.registro.outputs.id != '' && steps.registro.outputs.id != 'null'
+        continue-on-error: true
+        env:
+          TOKEN: ${{ secrets.CENTRAL_CI_TOKEN }}
+          ID: ${{ steps.registro.outputs.id }}
+          ESTADO: ${{ job.status == 'success' && 'ok' || (job.status == 'cancelled' && 'cancelado' || 'fallo') }}
+        run: |
+          registro=$(tail -n 200 despliegue.log 2>/dev/null || echo "Falló antes de desplegar; ver la ejecución en GitHub.")
+          jq -n --arg s "$ESTADO" --arg l "$registro" --arg c "$SHA7" '{status:$s, log:$l, commitSha:$c}' |
+            curl -fsS -X PATCH "$CENTRAL_API/deploys/$ID" -H "Authorization: Bearer $TOKEN" \
+              -H "Content-Type: application/json" -d @- >/dev/null
+
+      - name: Resumen
+        if: always()
+        run: |
+          {
+            echo "### $PROYECTO → $DESTINO"
+            echo "- Imagen: \`$IMAGEN\`"
+            if [ "$DESPLEGAR" = true ]; then
+              echo "- Stack: \`$CARPETA\` (puerto $PUERTO)"
+              echo "- Resultado: ${{ job.status }}"
+            else
+              echo "- PR desde un fork o de Dependabot: solo se construyó, no se desplegó."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
