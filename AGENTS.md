@@ -8,12 +8,9 @@ Aplicación web para academia de baile "Fuego Dance" con gestión de contenido m
 - **Backend**: Python FastAPI + SQLite con SQLAlchemy (puerto 8000)
 - **Base de datos**: SQLite (persistente en volumen)
 
-## Contenedores Docker
+## Contenedor
 
-| Servicio  | Imagen Docker Hub                        | Puerto | Dockerfile        |
-|-----------|------------------------------------------|--------|-------------------|
-| Backend   | `arturoalvarez/fuego-dance-api:latest`   | 8000   | `./backend/Dockerfile` |
-| Frontend  | `arturoalvarez/fuego-dance-web:latest`   | 8083   | `./frontend/Dockerfile` |
+Una sola imagen (`Dockerfile` en la raíz): FastAPI sirve la API y el SPA de React compilado. Contenedor `fuego-dance-app`, puerto 8000 dentro; en la VM, 8083 (producción) y 8183 (pruebas).
 
 ## Estructura del proyecto
 
@@ -41,10 +38,12 @@ salsa-academy/
 
 ## CI/CD
 
-El workflow de GitHub Actions (`deploy.yml`) se encarga de:
-1. Buildear las imágenes Docker (backend y frontend)
-2. Pushearlas a Docker Hub
-3. Los secrets `DOCKER_USERNAME` y `DOCKER_TOKEN` deben estar configurados en GitHub
+Plantilla CI/CD de Sinopia Labs (`.github/workflows/ci-cd.yml`; centro de conocimiento: *Plantilla CI/CD con GitHub Actions*):
+
+1. Un PR despliega a pruebas: `/opt/stacks/fuego-dance-app-pruebas`, puerto 8183, con datos propios en `./data`.
+2. El merge a la rama principal despliega a producción: `/opt/stacks/fuego-dance-app`, puerto 8083 (fuegodance.cl). Usa los datos de siempre: las rutas están en su `.env` (`SUBIDAS`, `INSTAGRAM`, `BASE`).
+3. Antes de reiniciar, `deploy/antes.sh` copia la base. Si `/api/health` no responde, vuelve solo a la versión anterior.
+4. A pedido: `gh workflow run ci-cd.yml -R ArturoAlvarezz/fuegodance -f destino=produccion`.
 
 ## Variables de entorno
 
